@@ -6,7 +6,7 @@ import asyncio
 import threading
 from datetime import datetime
 from http.server import SimpleHTTPRequestHandler, HTTPServer
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup
 from telegram.ext import (
     Application,
     CommandHandler,
@@ -304,23 +304,23 @@ async def admin_stream_task(chat_id, context, settings):
     finally:
         active_tasks.pop(chat_id, None)
 
-# ─── Keyboards ───
+# ─── Reply Keyboards ───
 
 def make_main_keyboard(chat_id):
     keyboard = []
     
     # 1. Generate Row
-    keyboard.append([InlineKeyboardButton("⚡ Generate Bill", callback_data="btn_gen_one")])
+    keyboard.append(["⚡ Generate Bill"])
     
     # 2. Admin stream controls
     if chat_id == ADMIN_ID:
         is_streaming = chat_id in active_tasks
         if is_streaming:
-            keyboard.append([InlineKeyboardButton("⏹ Stop Auto-Stream", callback_data="btn_stop_stream")])
+            keyboard.append(["⏹ Stop Auto-Stream"])
         else:
-            keyboard.append([InlineKeyboardButton("▶️ Start Auto-Stream", callback_data="btn_start_stream")])
+            keyboard.append(["▶️ Start Auto-Stream"])
             
-    return InlineKeyboardMarkup(keyboard)
+    return ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
 
 # ─── Command Handlers ───
 
@@ -390,10 +390,11 @@ async def admin_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         text += f"  {i+1}. `{ch}` -> [Invite Link]({link})\n"
         
     text += (
-        "\n⚡ **Admin Credit Giving Commands**:\n"
+        "\n⚡ **Admin Controls & Gift Commands**:\n"
         "• `/give [user_id] [amount]` - Add bills to a user\n"
         "• `/giveall [amount]` - Add bills to all active users\n"
         "• `/setrefer [amount]` - Set referral reward amount\n"
+        "• `/broadcast [message]` - Broadcast Markdown text to all users\n"
     )
         
     keyboard = [
@@ -498,6 +499,45 @@ async def setrefer_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         await update.message.reply_text(f"❌ Error: {e}")
 
+# ─── Admin Broadcast System ───
+
+async def broadcast_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    if user_id != ADMIN_ID:
+        return
+        
+    if not context.args:
+        await update.message.reply_text("❌ Usage: `/broadcast [message_text]`")
+        return
+        
+    message_text = " ".join(context.args)
+    count = 0
+    failed = 0
+    
+    os.makedirs("styles", exist_ok=True)
+    for filename in os.listdir("styles"):
+        if filename.endswith("_settings.json"):
+            parts = filename.split("_")
+            if len(parts) >= 2:
+                target_id = parts[0]
+                if target_id == "global":
+                      continue
+                try:
+                    await context.bot.send_message(
+                        chat_id=target_id,
+                        text=message_text,
+                        parse_mode="Markdown"
+                    )
+                    count += 1
+                except Exception as e:
+                    print(f"Failed to send broadcast to {target_id}: {e}")
+                    failed += 1
+                      
+    await update.message.reply_text(
+        f"📢 **Broadcast Completed**\n\n• Sent successfully: `{count}` users\n• Failed/Blocked: `{failed}` users",
+        parse_mode="Markdown"
+    )
+
 # ─── Callback Handler ───
 
 async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -541,78 +581,13 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 "Please send the index number of the channel you want to remove (e.g. `1` or `2`):"
             )
             
-    # --- Auto-Stream Controls (Admin Only) ---
-    elif data == "btn_start_stream":
-        if user_id != ADMIN_ID:
-            return
-        if chat_id in active_tasks:
-            return
-            
-        task = asyncio.create_task(admin_stream_task(chat_id, context, settings))
-        active_tasks[chat_id] = task
-        
-        await query.edit_message_text(
-            text="▶️ **Auto-Stream Active**\n\nGenerating unlimited bills every 2.5 seconds...",
-            reply_markup=make_main_keyboard(chat_id),
-            parse_mode="Markdown"
-        )
-        
-    elif data == "btn_stop_stream":
-        if user_id != ADMIN_ID:
-            return
-        task = active_tasks.get(chat_id)
-        if task:
-            task.cancel()
-            active_tasks.pop(chat_id, None)
-            
-        await query.edit_message_text(
-            text="⏹ **Auto-Stream Stopped**\n\nYou can generate bills individually or resume stream.",
-            reply_markup=make_main_keyboard(chat_id),
-            parse_mode="Markdown"
-        )
-        
-    # --- Standard User Button Actions ---
-    elif data == "btn_menu_main":
-        credits = settings.get("credits", 0)
-        config = get_global_config()
-        cooldown = config.get("cooling_period", 30)
-        ref_link = f"https://t.me/{(await context.bot.get_me()).username}?start=ref_{chat_id}"
-        
-        await query.edit_message_text(
-            text=(
-                f"👑 **Royal Chinese Garden Bill Generator** 🧾\n\n"
-                f"💰 **Available Bills**: `{credits} bills`\n"
-                f"⏱ **Cooling Period**: `{cooldown}s`\n\n"
-                f"🔗 **Referral Link**:\n"
-                f"`{ref_link}`"
-            ),
-            reply_markup=make_main_keyboard(chat_id),
-            parse_mode="Markdown"
-        )
-        
-    elif data == "btn_gen_one":
-        allowed = await enforce_membership_and_credits(chat_id, context, settings, consume_credit=True)
-        if not allowed:
-            return
-            
-        await query.edit_message_text("⏳ Rendering your custom receipt... please wait.")
-        try:
-            await render_and_send_receipt(chat_id, context, settings)
-        except Exception as e:
-            await query.message.reply_text(f"❌ Error generating receipt: {e}")
-            
-        await query.message.reply_text(
-            text=f"🧾 Menu controls (Balance: `{settings.get('credits', 0)} bills`):",
-            reply_markup=make_main_keyboard(chat_id),
-            parse_mode="Markdown"
-        )
-        
+    # --- Verify Channel Membership & Grant 3 Bills ---
     elif data == "btn_verify_join":
         is_member, _ = await check_channel_memberships(context.bot, chat_id)
         if is_member:
             if not settings.get("joined_channel", False):
                 settings["joined_channel"] = True
-                settings["credits"] = settings.get("credits", 0) + 3  # Join channel awards exactly 3 bills
+                settings["credits"] = settings.get("credits", 0) + 3  # Unlock 3 bills
                 save_user_settings(chat_id, settings)
                 
                 # Award referrer
@@ -638,10 +613,13 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             else:
                 success_text = "🎉 **Membership Confirmed!**\n\nYou are still subscribed to required channels."
                 
-            await query.edit_message_text(
-                text=success_text,
-                reply_markup=make_main_keyboard(chat_id),
-                parse_mode="Markdown"
+            await query.edit_message_text(text=success_text, parse_mode="Markdown")
+            
+            # Send main controls using reply keyboard
+            await context.bot.send_message(
+                chat_id=chat_id,
+                text="Use the reply keyboard below to generate your bills:",
+                reply_markup=make_main_keyboard(chat_id)
             )
         else:
             config = get_global_config()
@@ -668,6 +646,7 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
     user_id = update.effective_user.id
     text = update.message.text.strip()
     
+    # 1. Admin config states
     if user_id == ADMIN_ID and user_id in admin_states:
         state = admin_states[user_id]
         config = get_global_config()
@@ -733,7 +712,52 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
             
         return
 
-    # Standard user replies
+    # 2. Reply Keyboard button actions
+    if text == "⚡ Generate Bill":
+        settings = get_user_settings(chat_id)
+        allowed = await enforce_membership_and_credits(chat_id, context, settings, consume_credit=True)
+        if not allowed:
+            return
+            
+        await update.message.reply_text("⏳ Rendering your custom receipt... please wait.")
+        try:
+            await render_and_send_receipt(chat_id, context, settings)
+        except Exception as e:
+            await update.message.reply_text(f"❌ Error generating receipt: {e}")
+            
+        await update.message.reply_text(
+            text=f"🧾 Menu controls (Balance: `{settings.get('credits', 0)} bills`):",
+            reply_markup=make_main_keyboard(chat_id),
+            parse_mode="Markdown"
+        )
+        return
+        
+    elif text == "▶️ Start Auto-Stream" and user_id == ADMIN_ID:
+        if chat_id in active_tasks:
+            return
+        settings = get_user_settings(chat_id)
+        task = asyncio.create_task(admin_stream_task(chat_id, context, settings))
+        active_tasks[chat_id] = task
+        await update.message.reply_text(
+            "▶️ **Auto-Stream Active**\n\nGenerating unlimited bills every 2.5 seconds...",
+            reply_markup=make_main_keyboard(chat_id),
+            parse_mode="Markdown"
+        )
+        return
+        
+    elif text == "⏹ Stop Auto-Stream" and user_id == ADMIN_ID:
+        task = active_tasks.get(chat_id)
+        if task:
+            task.cancel()
+            active_tasks.pop(chat_id, None)
+        await update.message.reply_text(
+            "⏹ **Auto-Stream Stopped**\n\nYou can generate bills individually or resume stream.",
+            reply_markup=make_main_keyboard(chat_id),
+            parse_mode="Markdown"
+        )
+        return
+
+    # Standard photo upload warning
     if update.message.photo:
         await update.message.reply_text(
             "💡 **Notice**: Sending reference photos is no longer required. The bot generates bills directly using our custom restaurant layout. Just click **Generate Bill** below!"
@@ -756,6 +780,7 @@ def main():
     app.add_handler(CommandHandler("give", give_cmd))
     app.add_handler(CommandHandler("giveall", giveall_cmd))
     app.add_handler(CommandHandler("setrefer", setrefer_cmd))
+    app.add_handler(CommandHandler("broadcast", broadcast_cmd))
     app.add_handler(CallbackQueryHandler(handle_callback))
     app.add_handler(MessageHandler(filters.TEXT | filters.PHOTO, handle_text_message))
     
