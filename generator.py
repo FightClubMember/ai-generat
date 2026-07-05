@@ -205,7 +205,7 @@ def random_date():
     d = datetime.now() - timedelta(days=random.randint(0, 30),
                                   hours=random.randint(0, 23),
                                   minutes=random.randint(0, 59))
-    return d.strftime("%Y-%m-%d %H:%M")
+    return d.strftime("%d/%m/%Y %H:%M")
 
 def get_receipt_data(template_name, currency_symbol):
     """Generates structured random data for the receipt, matching the currency style (Indian or Western)."""
@@ -295,6 +295,36 @@ def get_receipt_data(template_name, currency_symbol):
         
     total = round(subtotal + tax, 2)
     
+    # Generate metadata for unified POS layout
+    table_no = f"T{random.randint(1, 30):02d}"
+    
+    # Server name
+    indian_servers = ["Kiran", "Rahul", "Amit", "Pooja", "Sanjay", "Deepak", "Anjali", "Rohan"]
+    western_servers = ["Sarah", "John", "David", "Emma", "Alex", "James", "Emily", "Michael"]
+    server_name = random.choice(indian_servers if is_indian else western_servers)
+    
+    # Subtitle, GSTIN, Tel, and Footer message based on template & currency
+    if template_name == "cafe":
+        subtitle = "(AUTHENTIC INDIAN CUISINE)" if is_indian else "(AUTHENTIC CAFE & BAKERY)"
+        gstin = "27FFGGH7890P5Z2" if is_indian else "TX-888-999-01"
+        tel_no = f"022-{random.randint(20000000, 29999999)}" if is_indian else f"({random.randint(200,999)}) {random.randint(100,999)}-{random.randint(1000,9999)}"
+        footer_msg = "THANK YOU VISIT AGAIN !!!"
+    elif template_name == "grocery":
+        subtitle = "(ORGANIC & FRESH SUPERMARKET)" if is_indian else "(FRESH FOODS MARKET)"
+        gstin = "27AABCC1234D1Z5" if is_indian else "TX-111-222-02"
+        tel_no = f"022-{random.randint(20000000, 29999999)}" if is_indian else f"({random.randint(200,999)}) {random.randint(100,999)}-{random.randint(1000,9999)}"
+        footer_msg = "THANK YOU VISIT AGAIN !!!"
+    elif template_name == "retail":
+        subtitle = "(EXCLUSIVE APPAREL BOUTIQUE)" if is_indian else "(PREMIUM FASHION APPAREL)"
+        gstin = "27AABCC5678E2Z0" if is_indian else "TX-333-444-03"
+        tel_no = f"022-{random.randint(20000000, 29999999)}" if is_indian else f"({random.randint(200,999)}) {random.randint(100,999)}-{random.randint(1000,9999)}"
+        footer_msg = "THANK YOU VISIT AGAIN !!!"
+    else:  # gas
+        subtitle = "(FUEL & CONVENIENCE STORE)" if is_indian else "(HIGHWAY FUEL SERVICE)"
+        gstin = "27AABCC9012F3Z9" if is_indian else "TX-555-666-04"
+        tel_no = f"022-{random.randint(20000000, 29999999)}" if is_indian else f"({random.randint(200,999)}) {random.randint(100,999)}-{random.randint(1000,9999)}"
+        footer_msg = "DRIVE SAFELY! VISIT AGAIN !!!"
+        
     return {
         "store_name": store_name,
         "store_addr": store_addr,
@@ -307,6 +337,12 @@ def get_receipt_data(template_name, currency_symbol):
         "tax_rate": tax_rate,
         "tax": tax,
         "total": total,
+        "table_no": table_no,
+        "server_name": server_name,
+        "subtitle": subtitle,
+        "gstin": gstin,
+        "tel_no": tel_no,
+        "footer_msg": footer_msg
     }
 
 # ─── Tabletop Background Generators ───
@@ -434,10 +470,23 @@ def draw_3d_creases(receipt_img, bg_color, text_color):
 # ─── Core Receipt Canvas Generator ───
 
 def draw_receipt_canvas(data, template_name, currency_symbol, font_style, bg_color, text_color):
-    """Renders the textual receipt onto a white/tinted canvas."""
+    """Renders the textual receipt onto a white/tinted canvas using a unified POS layout."""
     width = 380
     lines = []
     
+    # Local helper functions for exact character grid formatting (42 characters wide)
+    def center_line(text):
+        if len(text) >= 42:
+            return text[:42]
+        spaces = (42 - len(text)) // 2
+        return " " * spaces + text
+        
+    def align_two_cols(left, right, width_val=42):
+        rem = width_val - len(right)
+        if rem <= 0:
+            return right[:width_val]
+        return f"{left[:rem]:<{rem}}{right}"
+        
     store_name = data["store_name"]
     store_addr = data["store_addr"]
     date_str = data["date_str"]
@@ -447,142 +496,124 @@ def draw_receipt_canvas(data, template_name, currency_symbol, font_style, bg_col
     tax_rate = data["tax_rate"]
     tax = data["tax"]
     total = data["total"]
-    card = data["card"]
-    auth_code = data["auth_code"]
+    table_no = data["table_no"]
+    server_name = data["server_name"]
+    subtitle = data["subtitle"]
+    gstin = data["gstin"]
+    tel_no = data["tel_no"]
+    footer_msg = data["footer_msg"]
     
-    # Build text headers based on template
-    if template_name == "cafe":
-        lines.append(("   " + store_name.upper(), True))
-        lines.append(("   " + store_addr, False))
-        lines.append((f"   Tel: ({random.randint(200,999)}) {random.randint(100,999)}-{random.randint(1000,9999)}", False))
-        lines.append(("─" * 38, False))
-        lines.append(("   ☕ CAFE REWARD MEMBER", True))
-        lines.append((f"   Date: {date_str}", False))
-        lines.append((f"   Ticket: #{receipt_no}", False))
-        lines.append((f"   Cashier: {random.choice(string.ascii_uppercase)}{random.choice(string.ascii_uppercase)}", False))
-        lines.append(("─" * 38, False))
-        lines.append(("", False))
-        
-        for name, qty, price in items:
-            lines.append((f"   {name:<22} {qty:1d}   {currency_symbol}{price:>6.2f}", False))
-            
-        lines.append(("", False))
-        lines.append(("─" * 38, False))
-        lines.append((f"   SUBTOTAL{'':14s}{currency_symbol}{subtotal:>6.2f}", False))
-        if currency_symbol == "₹":
-            lines.append((f"   CGST ({tax_rate*100/2:.1f}%){'':11s}{currency_symbol}{tax/2:>6.2f}", False))
-            lines.append((f"   SGST ({tax_rate*100/2:.1f}%){'':11s}{currency_symbol}{tax/2:>6.2f}", False))
+    # ─── 1. Header Section (Center-aligned) ───
+    lines.append((center_line(store_name.upper()), True))
+    lines.append((center_line(subtitle.upper()), False))
+    # Draw address parts
+    for part in store_addr.split(", "):
+        lines.append((center_line(part), False))
+    lines.append((center_line(f"Tel: {tel_no}"), False))
+    lines.append((center_line(f"GSTIN: {gstin}"), False))
+    
+    lines.append(("------------------------------------------", False))
+    
+    # ─── 2. Metadata Grid (2 columns aligned at midpoint 21) ───
+    date_part = date_str.split()[0]
+    time_part = date_str.split()[1]
+    
+    # Left column label: "Date: ...", Right column label: "Table: ...", "Pump: ...", "Counter: ..."
+    table_label = "Table" if template_name == "cafe" else ("Pump" if template_name == "gas" else "Counter")
+    right_table = f"{table_label}: {table_no}"
+    
+    # Left / Right pairs
+    left_1 = f"Date: {date_part}"
+    left_2 = f"Time: {time_part}"
+    left_3 = f"Server: {server_name}"
+    
+    right_1 = right_table
+    right_2 = f"Bill: {receipt_no[:5]}"
+    right_3 = f"Type: SALE"
+    
+    lines.append((f"{left_1:<21}{right_1}", False))
+    lines.append((f"{left_2:<21}{right_2}", False))
+    lines.append((f"{left_3:<21}{right_3}", False))
+    
+    lines.append(("------------------------------------------", False))
+    
+    # ─── 3. Table Header (Item, Qty, Price, Amount) ───
+    # Widths: Item (16), Qty (8), Price (9), Amount (9) = 42 characters
+    table_header = f"{'Item':<16}{'Qty.':^8}{'Price':>9}{'Amount':>9}"
+    lines.append((table_header, True))
+    
+    lines.append(("------------------------------------------", False))
+    
+    # ─── 4. Item Rows ───
+    total_qty = 0
+    for name, qty, price in items:
+        # Calculate item amounts
+        if isinstance(qty, float):
+            qty_str = f"{qty:.2f}"
+            amount = qty * price
+            total_qty += qty
+        elif isinstance(qty, int):
+            qty_str = str(qty)
+            amount = qty * price
+            total_qty += qty
         else:
-            lines.append((f"   TAX ({tax_rate*100:.1f}%){'':10s}{currency_symbol}{tax:>6.2f}", False))
-        lines.append((f"   TOTAL{'':17s}{currency_symbol}{total:>6.2f}", True))
-        lines.append(("─" * 38, False))
-        lines.append((f"   Paid via Card: {card}", False))
-        lines.append((f"   Auth: {auth_code}", False))
-        lines.append(("", False))
-        lines.append(("     WiFi Network: CAFE_GUEST_5G", False))
-        lines.append(("     WiFi Pass:   fresh_beans_26", False))
-        lines.append(("", False))
-        lines.append(("        THANK YOU FOR SHOPPING!", True))
-        
-    elif template_name == "grocery":
-        lines.append(("   " + store_name, True))
-        lines.append(("   " + store_addr, False))
-        lines.append(("─" * 38, False))
-        lines.append((f"   ST# {random.randint(100,999)} OP# {random.randint(10,99)} TE# {random.randint(1,99)}  TR# {receipt_no[:4]}", False))
-        lines.append((f"   {date_str}", False))
-        lines.append(("─" * 38, False))
-        lines.append(("", False))
-        
-        for name, qty, price in items:
-            # Multi-quantity sub-items
-            if qty > 1:
-                lines.append((f"   {name:<22}      {currency_symbol}{price:>6.2f}", False))
-                lines.append((f"     {qty} @ {currency_symbol}{price/qty:.2f}", False))
-            else:
-                lines.append((f"   {name:<22}      {currency_symbol}{price:>6.2f}", False))
+            # String quantity, e.g. "12.45 L" (from fuel)
+            qty_str = qty
+            try:
+                val = float(qty.split()[0])
+                amount = val * price
+                total_qty += val
+            except Exception:
+                amount = price
+                total_qty += 1
                 
-        lines.append(("", False))
-        lines.append(("─" * 38, False))
-        lines.append((f"   SUBTOTAL{'':14s}{currency_symbol}{subtotal:>6.2f}", False))
-        if currency_symbol == "₹":
-            lines.append((f"   CGST ({tax_rate*100/2:.1f}%){'':11s}{currency_symbol}{tax/2:>6.2f}", False))
-            lines.append((f"   SGST ({tax_rate*100/2:.1f}%){'':11s}{currency_symbol}{tax/2:>6.2f}", False))
-        else:
-            lines.append((f"   TAX ({tax_rate*100:.1f}%){'':10s}{currency_symbol}{tax:>6.2f}", False))
-        lines.append((f"   TOTAL{'':17s}{currency_symbol}{total:>6.2f}", True))
-        lines.append(("─" * 38, False))
-        lines.append((f"   DEBIT CARD: {card}", False))
-        lines.append((f"   APP CODE: {auth_code}", False))
-        lines.append(("", False))
-        lines.append(("       * MEMBER SAVINGS APPLIED *", True))
-        lines.append(("      Return Policy: 90 days with receipt", False))
+        # Format name to max 15 chars to avoid overlapping column
+        name_fmt = name[:15]
         
-    elif template_name == "retail":
-        lines.append(("   " + store_name.upper(), True))
-        lines.append(("   " + store_addr, False))
-        lines.append(("", False))
-        lines.append((f"   Receipt: {receipt_no}", False))
-        lines.append((f"   Date: {date_str}", False))
-        lines.append(("─" * 38, False))
-        lines.append(("", False))
+        # Assemble item row
+        row = f"{name_fmt:<16}{qty_str:^8}{price:>9.2f}{amount:>9.2f}"
+        lines.append((row, False))
         
-        for name, qty, price in items:
-            lines.append((f"   {name:<24}", True))
-            lines.append((f"     SKU_{random.randint(100000,999999)}    {qty:1d} x {currency_symbol}{price:.2f}", False))
-            lines.append((f"     Item Total:        {currency_symbol}{price:>6.2f}", False))
-            lines.append(("", False))
-            
-        lines.append(("─" * 38, False))
-        lines.append((f"   Subtotal{'':14s}{currency_symbol}{subtotal:>6.2f}", False))
-        if currency_symbol == "₹":
-            lines.append((f"   CGST ({tax_rate*100/2:.1f}%){'':11s}{currency_symbol}{tax/2:>6.2f}", False))
-            lines.append((f"   SGST ({tax_rate*100/2:.1f}%){'':11s}{currency_symbol}{tax/2:>6.2f}", False))
-        else:
-            lines.append((f"   Tax ({tax_rate*100:.1f}%){'':10s}{currency_symbol}{tax:>6.2f}", False))
-        lines.append((f"   Total Amount{'':10s}{currency_symbol}{total:>6.2f}", True))
-        lines.append(("─" * 38, False))
-        lines.append((f"   Transaction Card: {card}", False))
-        lines.append((f"   Approval Code: {auth_code}", False))
-        lines.append(("", False))
-        lines.append(("      NO RETURNS WITHOUT RECEIPT", True))
-        lines.append(("    Thank you for choosing luxe.", False))
+    lines.append(("------------------------------------------", False))
+    
+    # ─── 5. Summary Section ───
+    is_indian = (currency_symbol == "₹")
+    
+    # Format Subtotal row
+    qty_label = f"Total Qty: {int(total_qty) if total_qty.is_integer() else total_qty:.2f}"
+    subtotal_val = f"{'Sub Total:':<12}{subtotal:>9.2f}"
+    lines.append((f"{qty_label:<21}{subtotal_val}", False))
+    
+    # GST / Tax rows
+    if is_indian:
+        cgst_val = f"{f'CGST {tax_rate*100/2:.1f}%:':<12}{tax/2:>9.2f}"
+        sgst_val = f"{f'SGST {tax_rate*100/2:.1f}%:':<12}{tax/2:>9.2f}"
+        lines.append((f"{'':<21}{cgst_val}", False))
+        lines.append((f"{'':<21}{sgst_val}", False))
+    else:
+        tax_val = f"{f'TAX {tax_rate*100:.1f}%:':<12}{tax:>9.2f}"
+        lines.append((f"{'':<21}{tax_val}", False))
         
-    else:  # gas
-        lines.append(("   " + store_name, True))
-        lines.append(("   " + store_addr, False))
-        lines.append((f"   Tel: ({random.randint(200,999)}) {random.randint(100,999)}-{random.randint(1000,9999)}", False))
-        lines.append(("─" * 38, False))
-        lines.append((f"   Date: {date_str}", False))
-        lines.append((f"   Pump: #{random.randint(1,24):02d}      Sale: {receipt_no}", False))
-        lines.append(("─" * 38, False))
-        lines.append(("", False))
+    # Round off (INR only)
+    grand_total = total
+    if is_indian:
+        rounded_total = float(round(total))
+        round_off = rounded_total - total
+        round_val = f"{'Round off:':<12}{round_off:>9.2f}"
+        lines.append((f"{'':<21}{round_val}", False))
+        grand_total = rounded_total
         
-        # First item is always fuel (different quantity type)
-        fuel_name, fuel_gal, fuel_price = items[0]
-        unit_type = "L" if "L" in fuel_gal else "G"
-        qty_val = float(fuel_gal.split()[0])
-        lines.append((f"   {fuel_name:<20} {currency_symbol}{fuel_price:>6.2f}", False))
-        lines.append((f"     {fuel_gal} @ {currency_symbol}{fuel_price/qty_val:.2f}/{unit_type}", False))
-        
-        # Rest of inside items
-        for name, qty, price in items[1:]:
-            lines.append((f"   {name:<22} {qty:1d}   {currency_symbol}{price:>6.2f}", False))
-            
-        lines.append(("", False))
-        lines.append(("─" * 38, False))
-        lines.append((f"   SUBTOTAL{'':14s}{currency_symbol}{subtotal:>6.2f}", False))
-        if currency_symbol == "₹":
-            lines.append((f"   CGST ({tax_rate*100/2:.1f}%){'':11s}{currency_symbol}{tax/2:>6.2f}", False))
-            lines.append((f"   SGST ({tax_rate*100/2:.1f}%){'':11s}{currency_symbol}{tax/2:>6.2f}", False))
-        else:
-            lines.append((f"   TAX ({tax_rate*100:.1f}%){'':10s}{currency_symbol}{tax:>6.2f}", False))
-        lines.append((f"   TOTAL{'':17s}{currency_symbol}{total:>6.2f}", True))
-        lines.append(("─" * 38, False))
-        lines.append((f"   CREDIT CARD: {card}", False))
-        lines.append((f"   AUTH NO: {auth_code}", False))
-        lines.append(("", False))
-        lines.append(("     DRIVE SAFELY! COME BACK SOON!", True))
-        
+    # Grand Total row (centered, slightly bold/indented)
+    # Using format "      Grand Total:  ₹ 2594.00"
+    grand_str = f"Grand Total:  {currency_symbol} {grand_total:.2f}"
+    lines.append((center_line(grand_str), True))
+    
+    lines.append(("------------------------------------------", False))
+    
+    # ─── 6. Footer message ───
+    lines.append((center_line(footer_msg), True))
+    lines.append(("------------------------------------------", False))
+    
     # Measure total height needed
     font_reg = get_font(13, bold=False)
     font_bold = get_font(13, bold=True)
@@ -591,7 +622,7 @@ def draw_receipt_canvas(data, template_name, currency_symbol, font_style, bg_col
     padding = 35
     total_height = len(lines) * line_h + padding * 2
     
-    # ─── Render Canvas ───
+    # Create image
     canvas = Image.new("RGB", (width, total_height), bg_color)
     draw = ImageDraw.Draw(canvas)
     
