@@ -17,7 +17,6 @@ from telegram.ext import (
 )
 
 from generator import generate_receipt_image, download_fonts
-from analyzer import analyze_receipt_style, load_user_style, save_user_style
 
 # ─── Configuration ───
 TOKEN = os.getenv("BOT_TOKEN")
@@ -32,6 +31,7 @@ ADMIN_ID = 7837935671
 # Global state
 admin_states = {}  # user_id -> string (awaiting input state)
 user_settings = {}  # chat_id -> dict
+active_tasks = {}  # chat_id -> asyncio.Task
 
 # ─── Global Config File (Admin parameters persist here) ───
 GLOBAL_CONFIG_PATH = "styles/global_config.json"
@@ -45,7 +45,6 @@ def get_global_config():
         except Exception:
             pass
             
-    # Default settings
     default_config = {
         "channels": ["@ai_receipt_channel"],
         "invite_links": ["https://t.me/ai_receipt_channel"],
@@ -73,32 +72,34 @@ DEFAULT_SETTINGS = {
 }
 
 def get_user_settings(chat_id):
-    if chat_id not in user_settings:
-        settings_path = f"styles/{chat_id}_settings.json"
+    chat_str = str(chat_id)
+    if chat_str not in user_settings:
+        settings_path = f"styles/{chat_str}_settings.json"
         if os.path.exists(settings_path):
             try:
                 with open(settings_path, "r") as f:
-                    user_settings[chat_id] = json.load(f)
+                    user_settings[chat_str] = json.load(f)
             except Exception:
-                user_settings[chat_id] = DEFAULT_SETTINGS.copy()
+                user_settings[chat_str] = DEFAULT_SETTINGS.copy()
         else:
-            user_settings[chat_id] = DEFAULT_SETTINGS.copy()
+            user_settings[chat_str] = DEFAULT_SETTINGS.copy()
             
     # Ensure default fields are present
     for k, v in DEFAULT_SETTINGS.items():
-        if k not in user_settings[chat_id]:
-            user_settings[chat_id][k] = v
+        if k not in user_settings[chat_str]:
+            user_settings[chat_str][k] = v
             
-    return user_settings[chat_id]
+    return user_settings[chat_str]
 
 def save_user_settings(chat_id, settings):
+    chat_str = str(chat_id)
     os.makedirs("styles", exist_ok=True)
-    settings_path = f"styles/{chat_id}_settings.json"
+    settings_path = f"styles/{chat_str}_settings.json"
     try:
         with open(settings_path, "w") as f:
             json.dump(settings, f)
     except Exception as e:
-        print(f"Failed to save settings for {chat_id}: {e}")
+        print(f"Failed to save settings for {chat_str}: {e}")
 
 # ─── Keep-Alive HTTP Server (for Render deployment) ───
 
@@ -123,6 +124,9 @@ def start_health_server():
 
 async def check_channel_memberships(bot, user_id):
     """Checks if a user is a member of ALL required channels."""
+    if user_id == ADMIN_ID:
+        return True, None
+        
     config = get_global_config()
     channels = config.get("channels", ["@ai_receipt_channel"])
     
@@ -135,9 +139,8 @@ async def check_channel_memberships(bot, user_id):
                 return False, channel
         except Exception as e:
             print(f"Channel membership check failed for {channel}: {e}")
-            # Bypass check during local testing if channel is not found
             if "Chat not found" in str(e) or "chat not found" in str(e) or "bot is not a member" in str(e):
-                print(f"WARNING: Channel {channel} not found or bot is not admin. Bypassing check.")
+                print(f"WARNING: Channel {channel} not found or bot is not admin. Bypassing check for testing.")
                 continue
             return False, channel
     return True, None
@@ -145,10 +148,12 @@ async def check_channel_memberships(bot, user_id):
 async def enforce_membership_and_credits(chat_id, context, settings, consume_credit=False):
     """
     Checks channel memberships, cooldowns, and credit balance.
-    If membership is missing, prompts to join and awards +50 credits once verified.
-    Handles referral awards (+5 credits to referrer).
-    Checks cooldown periods.
+    Admin gets complete bypass.
     """
+    # 0. Admin Bypass
+    if chat_id == ADMIN_ID:
+        return True
+
     config = get_global_config()
     channels = config.get("channels", ["@ai_receipt_channel"])
     invite_links = config.get("invite_links", ["https://t.me/ai_receipt_channel"])
@@ -164,7 +169,7 @@ async def enforce_membership_and_credits(chat_id, context, settings, consume_cre
             save_user_settings(chat_id, settings)
             await context.bot.send_message(
                 chat_id=chat_id,
-                text="⚠️ **Warning**: You left one of our official channels! 50 reward credits have been deducted."
+                text="⚠️ **Warning**: You left one of our required channels! 50 reward credits have been deducted."
             )
             
         # Display join prompt
@@ -179,7 +184,7 @@ async def enforce_membership_and_credits(chat_id, context, settings, consume_cre
             chat_id=chat_id,
             text=(
                 f"⚠️ **Access Restricted!**\n\n"
-                f"To use the bot, you must be a member of all required channels first!\n\n"
+                f"To use the bot, you must join all required channels first!\n\n"
                 f"Join them and click verify to unlock **50 free credits**!"
             ),
             reply_markup=InlineKeyboardMarkup(keyboard),
@@ -199,7 +204,6 @@ async def enforce_membership_and_credits(chat_id, context, settings, consume_cre
             settings["referral_rewarded"] = True
             save_user_settings(chat_id, settings)
             
-            # Award 5 credits to referrer
             ref_settings = get_user_settings(referred_by)
             ref_settings["credits"] = ref_settings.get("credits", 3) + 5
             save_user_settings(referred_by, ref_settings)
@@ -259,16 +263,18 @@ async def enforce_membership_and_credits(chat_id, context, settings, consume_cre
 
 async def render_and_send_receipt(chat_id, context, settings):
     """Runs PIL receipt rendering in a background thread and sends it as a photo."""
-    # Renders the Chinese Restaurant bill exactly as sended in the reference image
-    # Tabletop layout, striped background, and bold fonts are active by default
     img = await asyncio.to_thread(generate_receipt_image)
     
-    # Save image to bytes stream
     buf = io.BytesIO()
     img.save(buf, format="PNG", optimize=True)
     buf.seek(0)
     
-    caption = f"🧾 Here is your restaurant bill!\n💰 Remaining Balance: `{settings.get('credits', 3)} credits`"
+    credits = settings.get("credits", 3)
+    caption = f"🧾 Here is your restaurant bill!"
+    if chat_id != ADMIN_ID:
+        caption += f"\n💰 Remaining Balance: `{credits} bills`"
+    else:
+        caption += "\n👑 Admin Unlimited Mode Active."
         
     await context.bot.send_photo(
         chat_id=chat_id,
@@ -278,35 +284,72 @@ async def render_and_send_receipt(chat_id, context, settings):
         filename="bill.png"
     )
 
-# ─── Commands & Keyboards ───
+# ─── Admin Continuous Auto-Stream Task ───
 
-def make_main_keyboard():
-    keyboard = [
-        [InlineKeyboardButton("⚡ Generate Bill", callback_data="btn_gen_one")],
-        [InlineKeyboardButton("🎁 Daily Bonus (+5)", callback_data="btn_claim_daily")]
-    ]
+async def admin_stream_task(chat_id, context, settings):
+    """Continuous stream loop for Admin only (unlimited bills)."""
+    count = 1
+    try:
+        while True:
+            await render_and_send_receipt(chat_id, context, settings)
+            count += 1
+            await asyncio.sleep(2.5)  # Send a new bill every 2.5 seconds
+    except asyncio.CancelledError:
+        pass
+    except Exception as e:
+        print(f"Admin stream error: {e}")
+        await context.bot.send_message(chat_id=chat_id, text=f"🛑 Stream stopped: {e}")
+    finally:
+        active_tasks.pop(chat_id, None)
+
+# ─── Keyboards ───
+
+def make_main_keyboard(chat_id):
+    keyboard = []
+    
+    # 1. Generate Row
+    keyboard.append([InlineKeyboardButton("⚡ Generate Bill", callback_data="btn_gen_one")])
+    
+    # 2. Admin stream controls
+    if chat_id == ADMIN_ID:
+        is_streaming = chat_id in active_tasks
+        if is_streaming:
+            keyboard.append([InlineKeyboardButton("⏹ Stop Auto-Stream", callback_data="btn_stop_stream")])
+        else:
+            keyboard.append([InlineKeyboardButton("▶️ Start Auto-Stream", callback_data="btn_start_stream")])
+            
+    # 3. Bonus Row
+    keyboard.append([InlineKeyboardButton("🎁 Daily Bonus (+5)", callback_data="btn_claim_daily")])
+    
     return InlineKeyboardMarkup(keyboard)
+
+# ─── Command Handlers ───
 
 async def start_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
     user_id = update.effective_user.id
     
-    # Check if they joined via a referral link
+    # Check if new user has joined via a referral link
     settings = get_user_settings(chat_id)
     if context.args and context.args[0].startswith("ref_"):
         try:
             referrer_id = int(context.args[0].split("_")[1])
-            # Only set if they don't already have a referrer and aren't referring themselves
             if not settings.get("referred_by") and referrer_id != user_id:
                 settings["referred_by"] = str(referrer_id)
                 save_user_settings(chat_id, settings)
         except Exception as e:
-            print(f"Error parsing referral ID: {e}")
+            print(f"Error parsing referral: {e}")
             
+    # Enforce channel memberships immediately for standard users
+    if user_id != ADMIN_ID:
+        is_member, _ = await check_channel_memberships(context.bot, chat_id)
+        if not is_member:
+            await enforce_membership_and_credits(chat_id, context, settings, consume_credit=False)
+            return
+
     credits = settings.get("credits", 3)
     config = get_global_config()
     cooldown = config.get("cooling_period", 30)
-    
     ref_link = f"https://t.me/{(await context.bot.get_me()).username}?start=ref_{chat_id}"
     
     welcome_text = (
@@ -321,11 +364,9 @@ async def start_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     await update.message.reply_text(
         text=welcome_text,
-        reply_markup=make_main_keyboard(),
+        reply_markup=make_main_keyboard(chat_id),
         parse_mode="Markdown"
     )
-
-# ─── Admin Control Panel ───
 
 async def admin_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
@@ -347,6 +388,12 @@ async def admin_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         link = invite_links[i] if i < len(invite_links) else "N/A"
         text += f"  {i+1}. `{ch}` -> [Invite Link]({link})\n"
         
+    text += (
+        "\n⚡ **Admin Credit Giving Commands**:\n"
+        "• `/give [user_id] [amount]` - Add bills to a user\n"
+        "• `/giveall [amount]` - Add bills to all active users\n"
+    )
+        
     keyboard = [
         [InlineKeyboardButton("⏱ Edit Cooling Period", callback_data="adm_edit_cooldown")],
         [
@@ -361,7 +408,74 @@ async def admin_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         parse_mode="Markdown"
     )
 
-# ─── Message & Callback Handlers ───
+# ─── Admin Billing Credit Commands ───
+
+async def give_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    if user_id != ADMIN_ID:
+        return
+        
+    if len(context.args) < 2:
+        await update.message.reply_text("❌ Usage: `/give [user_id] [amount]`", parse_mode="Markdown")
+        return
+        
+    try:
+        target_id = context.args[0].strip()
+        amount = int(context.args[1])
+        
+        target_settings = get_user_settings(target_id)
+        target_settings["credits"] = target_settings.get("credits", 3) + amount
+        save_user_settings(target_id, target_settings)
+        
+        await update.message.reply_text(f"✅ Successfully gave **{amount} bills** to user `{target_id}`.", parse_mode="Markdown")
+        
+        try:
+            await context.bot.send_message(
+                chat_id=target_id,
+                text=f"🎉 **Reward Alert!**\n\nThe admin has credited **+{amount} bills** to your balance!"
+            )
+        except Exception:
+            pass
+            
+    except ValueError:
+        await update.message.reply_text("❌ Amount must be an integer.")
+    except Exception as e:
+        await update.message.reply_text(f"❌ Error: {e}")
+
+async def giveall_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    if user_id != ADMIN_ID:
+        return
+        
+    if len(context.args) < 1:
+        await update.message.reply_text("❌ Usage: `/giveall [amount]`", parse_mode="Markdown")
+        return
+        
+    try:
+        amount = int(context.args[0])
+        count = 0
+        
+        os.makedirs("styles", exist_ok=True)
+        for filename in os.listdir("styles"):
+            if filename.endswith("_settings.json"):
+                parts = filename.split("_")
+                if len(parts) >= 2:
+                    t_id = parts[0]
+                    if t_id == "global":
+                        continue
+                    t_settings = get_user_settings(t_id)
+                    t_settings["credits"] = t_settings.get("credits", 3) + amount
+                    save_user_settings(t_id, t_settings)
+                    count += 1
+                    
+        await update.message.reply_text(f"✅ Successfully gave **{amount} bills** to all **{count} active users**.", parse_mode="Markdown")
+        
+    except ValueError:
+        await update.message.reply_text("❌ Amount must be an integer.")
+    except Exception as e:
+        await update.message.reply_text(f"❌ Error: {e}")
+
+# ─── Callback Handler ───
 
 async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -372,6 +486,13 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     settings = get_user_settings(chat_id)
     data = query.data
     
+    # Enforce channel memberships immediately for standard users
+    if user_id != ADMIN_ID and data != "btn_verify_join":
+        is_member, _ = await check_channel_memberships(context.bot, chat_id)
+        if not is_member:
+            await enforce_membership_and_credits(chat_id, context, settings, consume_credit=False)
+            return
+
     # --- Admin Button Actions ---
     if data.startswith("adm_"):
         if user_id != ADMIN_ID:
@@ -379,7 +500,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             
         if data == "adm_edit_cooldown":
             admin_states[user_id] = "awaiting_cooldown"
-            await query.edit_message_text("⏱ **Awaiting Cooldown Cooldown Input**\n\nPlease send the cooling period in seconds (e.g. `60`):")
+            await query.edit_message_text("⏱ **Awaiting Cooldown Input**\n\nPlease send the cooling period in seconds (e.g. `60`):")
             
         elif data == "adm_add_channel":
             admin_states[user_id] = "awaiting_add_channel"
@@ -397,7 +518,37 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 "Please send the index number of the channel you want to remove (e.g. `1` or `2`):"
             )
             
-    # --- User Button Actions ---
+    # --- Auto-Stream Controls (Admin Only) ---
+    elif data == "btn_start_stream":
+        if user_id != ADMIN_ID:
+            return
+        if chat_id in active_tasks:
+            return
+            
+        task = asyncio.create_task(admin_stream_task(chat_id, context, settings))
+        active_tasks[chat_id] = task
+        
+        await query.edit_message_text(
+            text="▶️ **Auto-Stream Active**\n\nGenerating unlimited bills every 2.5 seconds...",
+            reply_markup=make_main_keyboard(chat_id),
+            parse_mode="Markdown"
+        )
+        
+    elif data == "btn_stop_stream":
+        if user_id != ADMIN_ID:
+            return
+        task = active_tasks.get(chat_id)
+        if task:
+            task.cancel()
+            active_tasks.pop(chat_id, None)
+            
+        await query.edit_message_text(
+            text="⏹ **Auto-Stream Stopped**\n\nYou can generate bills individually or resume stream.",
+            reply_markup=make_main_keyboard(chat_id),
+            parse_mode="Markdown"
+        )
+        
+    # --- Standard User Button Actions ---
     elif data == "btn_menu_main":
         credits = settings.get("credits", 3)
         config = get_global_config()
@@ -412,12 +563,11 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 f"🔗 **Referral Link**:\n"
                 f"`{ref_link}`"
             ),
-            reply_markup=make_main_keyboard(),
+            reply_markup=make_main_keyboard(chat_id),
             parse_mode="Markdown"
         )
         
     elif data == "btn_gen_one":
-        # Check channel subscription and cooldown
         allowed = await enforce_membership_and_credits(chat_id, context, settings, consume_credit=True)
         if not allowed:
             return
@@ -428,10 +578,9 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except Exception as e:
             await query.message.reply_text(f"❌ Error generating receipt: {e}")
             
-        # Restore controls
         await query.message.reply_text(
-            text=f"🧾 Menu controls (Balance: `{settings.get('credits', 3)} credits`):",
-            reply_markup=make_main_keyboard(),
+            text=f"🧾 Menu controls (Balance: `{settings.get('credits', 3)} bills`):",
+            reply_markup=make_main_keyboard(chat_id),
             parse_mode="Markdown"
         )
         
@@ -443,7 +592,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 settings["credits"] = settings.get("credits", 3) + 50
                 save_user_settings(chat_id, settings)
                 
-                # Check for referral rewards
+                # Award referrer
                 referred_by = settings.get("referred_by", "")
                 if referred_by and not settings.get("referral_rewarded", False):
                     settings["referral_rewarded"] = True
@@ -466,7 +615,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 
             await query.edit_message_text(
                 text=success_text,
-                reply_markup=make_main_keyboard(),
+                reply_markup=make_main_keyboard(chat_id),
                 parse_mode="Markdown"
             )
         else:
@@ -483,7 +632,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.edit_message_text(
                 text=(
                     f"❌ **Verification Failed!**\n\n"
-                    f"Please make sure you have joined all of our official channels first before trying to verify."
+                    f"Please make sure you have joined all required channels before verifying."
                 ),
                 reply_markup=InlineKeyboardMarkup(keyboard),
                 parse_mode="Markdown"
@@ -496,7 +645,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if last_claim == today_str:
             await query.edit_message_text(
                 text="❌ **Already Claimed!**\n\nYou have already claimed your daily bonus today. Come back tomorrow!",
-                reply_markup=make_main_keyboard(),
+                reply_markup=make_main_keyboard(chat_id),
                 parse_mode="Markdown"
             )
         else:
@@ -507,10 +656,10 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.edit_message_text(
                 text=(
                     f"🎉 **Daily Bonus Claimed!**\n\n"
-                    f"Added **+5 credits** to your balance.\n"
-                    f"💰 Total Balance: `{settings['credits']} credits`"
+                    f"Added **+5 bills** to your balance.\n"
+                    f"💰 Total Balance: `{settings['credits']} bills`"
                 ),
-                reply_markup=make_main_keyboard(),
+                reply_markup=make_main_keyboard(chat_id),
                 parse_mode="Markdown"
             )
 
@@ -519,7 +668,6 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
     user_id = update.effective_user.id
     text = update.message.text.strip()
     
-    # Verify if admin is in configuration state
     if user_id == ADMIN_ID and user_id in admin_states:
         state = admin_states[user_id]
         config = get_global_config()
@@ -531,7 +679,7 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
                 save_global_config(config)
                 await update.message.reply_text(f"✅ Cooling period updated to **{val} seconds**.", parse_mode="Markdown")
             except ValueError:
-                await update.message.reply_text("❌ Invalid input. Please send an integer value.")
+                await update.message.reply_text("❌ Invalid input. Please send an integer.")
             admin_states.pop(user_id, None)
             
         elif state == "awaiting_add_channel":
@@ -541,7 +689,7 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
                 invite_link = parts[1]
                 
                 if not (channel_id.startswith("@") or channel_id.startswith("-100")):
-                    await update.message.reply_text("❌ Channel ID must start with @ (public) or -100 (private).")
+                    await update.message.reply_text("❌ Channel ID must start with @ or -100.")
                     return
                     
                 channels = config.get("channels", ["@ai_receipt_channel"])
@@ -558,7 +706,7 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
                     parse_mode="Markdown"
                 )
             else:
-                await update.message.reply_text("❌ Invalid format. Please send: `[channel_id] [invite_link]`")
+                await update.message.reply_text("❌ Invalid format. Use: `[channel_id] [invite_link]`")
             admin_states.pop(user_id, None)
             
         elif state == "awaiting_remove_channel":
@@ -585,7 +733,7 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
             
         return
 
-    # Standard users who send photos (Reference/Inspiration photos are disabled as per request)
+    # Standard user replies
     if update.message.photo:
         await update.message.reply_text(
             "💡 **Notice**: Sending reference photos is no longer required. The bot generates bills directly using our custom restaurant layout. Just click **Generate Bill** below!"
@@ -605,6 +753,8 @@ def main():
     app.add_handler(CommandHandler("start", start_cmd))
     app.add_handler(CommandHandler("help", start_cmd))
     app.add_handler(CommandHandler("admin", admin_cmd))
+    app.add_handler(CommandHandler("give", give_cmd))
+    app.add_handler(CommandHandler("giveall", giveall_cmd))
     app.add_handler(CallbackQueryHandler(handle_callback))
     app.add_handler(MessageHandler(filters.TEXT | filters.PHOTO, handle_text_message))
     
