@@ -209,11 +209,9 @@ def get_receipt_data():
 
 def generate_striped_background(width, height):
     """Generates the vertical striped beige background from the reference photo."""
-    # Base warm cream/beige: #f2ede0 (242, 237, 224)
     bg = Image.new("RGB", (width, height), (242, 237, 224))
     draw = ImageDraw.Draw(bg)
     
-    # Draw vertical stripes of slightly darker beige: #eae4d4 (234, 228, 212)
     stripe_w = 16
     for x in range(0, width, stripe_w * 2):
         draw.rectangle([x, 0, x + stripe_w, height], fill=(234, 228, 212))
@@ -227,16 +225,9 @@ def generate_striped_background(width, height):
 # ─── Core Receipt Canvas Generator ───
 
 def draw_receipt_canvas(data, text_color):
-    """Renders the receipt directly onto a 3:4 aspect ratio striped canvas."""
-    lines = [] # Array of tuples: (text_line, is_bold, is_large)
+    """Renders the receipt directly onto a 3:4 aspect ratio striped canvas with pixel-calibrated headers."""
+    lines = [] # Array of tuples: (text_line, is_bold, is_large, is_centered)
     
-    # Local helper functions for exact character grid formatting (42 characters wide)
-    def center_line(text):
-        if len(text) >= 42:
-            return text[:42]
-        spaces = (42 - len(text)) // 2
-        return " " * spaces + text
-        
     store_name = data["store_name"]
     subtitle = data["subtitle"]
     tel_no = data["tel_no"]
@@ -252,18 +243,17 @@ def draw_receipt_canvas(data, text_color):
     server_name = data["server_name"]
     footer_msg = data["footer_msg"]
     
-    # ─── 1. Header Section (Center-aligned) ───
-    lines.append((center_line(store_name.upper()), True, True))   # Large Bold Store Name
-    lines.append((center_line(subtitle.upper()), True, False))   # Bold Subtitle
-    # Address lines exactly formatted on 2 lines
-    lines.append((center_line(data["address_line1"]), False, False))
-    lines.append((center_line(data["address_line2"]), False, False))
-    lines.append((center_line(f"Tel: {tel_no}"), False, False))
-    lines.append((center_line(f"GSTIN: {gstin}"), False, False))
+    # ─── 1. Header Section (Marked as centered for pixel calibration) ───
+    lines.append((store_name.upper(), True, True, True))            # Large Bold Store Name (Centered)
+    lines.append((subtitle.upper(), True, False, True))             # Bold Subtitle (Centered)
+    lines.append((data["address_line1"], False, False, True))       # Address Line 1 (Centered)
+    lines.append((data["address_line2"], False, False, True))       # Address Line 2 (Centered)
+    lines.append((f"Tel: {tel_no}", False, False, True))            # Tel Line (Centered)
+    lines.append((f"GSTIN: {gstin}", False, False, True))          # GSTIN (Centered)
     
-    lines.append(("------------------------------------------", False, False))
+    lines.append(("------------------------------------------", False, False, False))
     
-    # ─── 2. Metadata Grid ───
+    # ─── 2. Metadata Grid (Aligned to 21 column midpoint) ───
     date_part = date_str.split()[0]
     time_part = date_str.split()[1]
     
@@ -275,17 +265,17 @@ def draw_receipt_canvas(data, text_color):
     right_2 = f"Bill: {receipt_no}"
     right_3 = f"Type: SALE"
     
-    lines.append((f"{left_1:<21}{right_1}", False, False))
-    lines.append((f"{left_2:<21}{right_2}", False, False))
-    lines.append((f"{left_3:<21}{right_3}", False, False))
+    lines.append((f"{left_1:<21}{right_1}", False, False, False))
+    lines.append((f"{left_2:<21}{right_2}", False, False, False))
+    lines.append((f"{left_3:<21}{right_3}", False, False, False))
     
-    lines.append(("------------------------------------------", False, False))
+    lines.append(("------------------------------------------", False, False, False))
     
     # ─── 3. Table Header (Item, Qty, Price, Amount) ───
     table_header = f"{'Item':<16}{'Qty.':^8}{'Price':>9}{'Amount':>9}"
-    lines.append((table_header, True, False))
+    lines.append((table_header, True, False, False))
     
-    lines.append(("------------------------------------------", False, False))
+    lines.append(("------------------------------------------", False, False, False))
     
     # ─── 4. Item Rows ───
     total_qty = 0
@@ -296,37 +286,37 @@ def draw_receipt_canvas(data, text_color):
         
         name_fmt = name[:15]
         row = f"{name_fmt:<16}{qty_str:^8}{price:>9.2f}{amount:>9.2f}"
-        lines.append((row, False, False))
+        lines.append((row, False, False, False))
         
-    lines.append(("------------------------------------------", False, False))
+    lines.append(("------------------------------------------", False, False, False))
     
     # ─── 5. Summary Section ───
     qty_label = f"Total Qty: {total_qty}"
     subtotal_val = f"{'Sub Total:':<12}{subtotal:>9.2f}"
-    lines.append((f"{qty_label:<21}{subtotal_val}", False, False))
+    lines.append((f"{qty_label:<21}{subtotal_val}", False, False, False))
     
     # GST splits (CGST 2.5% + SGST 2.5%)
     cgst_val = f"{'CGST 2.5%:':<12}{tax/2:>9.2f}"
     sgst_val = f"{'SGST 2.5%:':<12}{tax/2:>9.2f}"
-    lines.append((f"{'':<21}{cgst_val}", False, False))
-    lines.append((f"{'':<21}{sgst_val}", False, False))
+    lines.append((f"{'':<21}{cgst_val}", False, False, False))
+    lines.append((f"{'':<21}{sgst_val}", False, False, False))
         
     # Round off
     rounded_total = float(round(total))
     round_off = rounded_total - total
     round_val = f"{'Round off:':<12}{round_off:>9.2f}"
-    lines.append((f"{'':<21}{round_val}", False, False))
+    lines.append((f"{'':<21}{round_val}", False, False, False))
     grand_total = rounded_total
         
-    # Grand Total row (center-aligned bold)
+    # Grand Total row (centered bold)
     grand_str = f"Grand Total:  ₹ {grand_total:.2f}"
-    lines.append((center_line(grand_str), True, False))
+    lines.append((grand_str, True, False, True))
     
-    lines.append(("------------------------------------------", False, False))
+    lines.append(("------------------------------------------", False, False, False))
     
-    # ─── 6. Footer message ───
-    lines.append((center_line(footer_msg), True, False))
-    lines.append(("------------------------------------------", False, False))
+    # ─── 6. Footer message (centered bold) ───
+    lines.append((footer_msg, True, False, True))
+    lines.append(("------------------------------------------", False, False, False))
     
     # Measure total height needed dynamically based on font size
     font_reg = get_font(13, bold=False)
@@ -337,7 +327,7 @@ def draw_receipt_canvas(data, text_color):
     padding = 35
     total_height = padding * 2
     
-    for _, _, is_large in lines:
+    for _, _, is_large, _ in lines:
         total_height += 23 if is_large else line_h
         
     # Enforce 3:4 Aspect Ratio (width = height * 3 / 4)
@@ -347,11 +337,11 @@ def draw_receipt_canvas(data, text_color):
     canvas = generate_striped_background(width, total_height)
     draw = ImageDraw.Draw(canvas)
     
-    # Center the receipt text block horizontally (Roboto Mono 13 size text block is ~336px wide)
+    # Center standard text blocks horizontally (Roboto Mono 13 size text block is ~336px wide)
     x_offset = max(10, (width - 336) // 2)
     
     y = padding
-    for line_text, is_bold, is_large in lines:
+    for line_text, is_bold, is_large, is_centered in lines:
         if is_large:
             font = font_large_bold
             curr_line_h = 23
@@ -359,7 +349,14 @@ def draw_receipt_canvas(data, text_color):
             font = font_bold if is_bold else font_reg
             curr_line_h = line_h
             
-        draw.text((x_offset, y), line_text, font=font, fill=text_color)
+        if is_centered:
+            # Exact pixel-based text width calculation for perfect visual centering
+            text_w = draw.textlength(line_text, font=font)
+            x = (width - text_w) // 2
+            draw.text((x, y), line_text, font=font, fill=text_color)
+        else:
+            draw.text((x_offset, y), line_text, font=font, fill=text_color)
+            
         y += curr_line_h
         
     return canvas
