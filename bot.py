@@ -265,16 +265,27 @@ async def enforce_membership_and_credits(chat_id, context, settings, consume_cre
 
 async def render_and_send_receipt(chat_id, context, settings):
     """Runs PIL receipt rendering in a background thread and sends it as a photo."""
-    img = await asyncio.to_thread(generate_receipt_image)
+    img, data = await asyncio.to_thread(generate_receipt_image)
     
     buf = io.BytesIO()
     img.save(buf, format="PNG", optimize=True)
     buf.seek(0)
     
     credits = settings.get("credits", 0)
-    caption = f"🧾 Here is your restaurant bill!"
+    
+    # Store details for caption
+    shop_name = data["store_name"]
+    address = data["store_addr"]
+    rounded_total = float(round(data["total"]))
+    
+    caption = (
+        f"🧾 **Bill Generated Successfully!**\n\n"
+        f"🏬 **Shop**: {shop_name}\n"
+        f"📍 **Address**: {address}\n"
+        f"💰 **Total Bill**: `₹ {rounded_total:.2f}`\n"
+    )
     if chat_id != ADMIN_ID:
-        caption += f"\n💰 Remaining Balance: `{credits} bills`"
+        caption += f"\n💰 **Remaining Balance**: `{credits} bills`"
     else:
         caption += "\n👑 Admin Unlimited Mode Active."
         
@@ -345,6 +356,33 @@ async def start_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not is_member:
             await enforce_membership_and_credits(chat_id, context, settings, consume_credit=False)
             return
+        else:
+            # User has joined channel already, credit 3 bills automatically if not already rewarded
+            if not settings.get("joined_channel", False):
+                settings["joined_channel"] = True
+                settings["credits"] = settings.get("credits", 0) + 3
+                save_user_settings(chat_id, settings)
+                
+                # Reward referrer
+                referred_by = settings.get("referred_by", "")
+                if referred_by and not settings.get("referral_rewarded", False):
+                    settings["referral_rewarded"] = True
+                    save_user_settings(chat_id, settings)
+                    
+                    config = get_global_config()
+                    referral_reward = config.get("referral_reward", 5)
+                    ref_settings = get_user_settings(referred_by)
+                    ref_settings["credits"] = ref_settings.get("credits", 0) + referral_reward
+                    save_user_settings(referred_by, ref_settings)
+                    try:
+                        await context.bot.send_message(
+                            chat_id=referred_by,
+                            text=f"🎉 **Referral Success!**\n\nSomeone joined using your link! You earned **+{referral_reward} free bills**."
+                        )
+                    except Exception:
+                        pass
+                
+                await update.message.reply_text("🎉 **Membership Verified!**\nAdded **3 free bills** to your balance.")
 
     credits = settings.get("credits", 0)
     config = get_global_config()
@@ -352,7 +390,7 @@ async def start_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ref_link = f"https://t.me/{(await context.bot.get_me()).username}?start=ref_{chat_id}"
     
     welcome_text = (
-        f"👑 **Royal Chinese Garden Bill Generator** 🧾\n\n"
+        f"👑 **Indian Cafes & Hotels Bill Generator** 🧾\n\n"
         f"Generate authentic restaurant bills instantly.\n\n"
         f"💰 **Available Bills**: `{credits} bills`\n"
         f"⏱ **Cooling Period**: `{cooldown}s`\n\n"
@@ -581,13 +619,78 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 "Please send the index number of the channel you want to remove (e.g. `1` or `2`):"
             )
             
-    # --- Verify Channel Membership & Grant 3 Bills ---
+    # --- Auto-Stream Controls (Admin Only) ---
+    elif data == "btn_start_stream":
+        if user_id != ADMIN_ID:
+            return
+        if chat_id in active_tasks:
+            return
+            
+        task = asyncio.create_task(admin_stream_task(chat_id, context, settings))
+        active_tasks[chat_id] = task
+        
+        await query.edit_message_text(
+            text="▶️ **Auto-Stream Active**\n\nGenerating unlimited bills every 2.5 seconds...",
+            reply_markup=make_main_keyboard(chat_id),
+            parse_mode="Markdown"
+        )
+        
+    elif data == "btn_stop_stream":
+        if user_id != ADMIN_ID:
+            return
+        task = active_tasks.get(chat_id)
+        if task:
+            task.cancel()
+            active_tasks.pop(chat_id, None)
+            
+        await query.edit_message_text(
+            text="⏹ **Auto-Stream Stopped**\n\nYou can generate bills individually or resume stream.",
+            reply_markup=make_main_keyboard(chat_id),
+            parse_mode="Markdown"
+        )
+        
+    # --- Standard User Button Actions ───
+    elif data == "btn_menu_main":
+        credits = settings.get("credits", 0)
+        config = get_global_config()
+        cooldown = config.get("cooling_period", 30)
+        ref_link = f"https://t.me/{(await context.bot.get_me()).username}?start=ref_{chat_id}"
+        
+        await query.edit_message_text(
+            text=(
+                f"👑 **Indian Cafes & Hotels Bill Generator** 🧾\n\n"
+                f"💰 **Available Bills**: `{credits} bills`\n"
+                f"⏱ **Cooling Period**: `{cooldown}s`\n\n"
+                f"🔗 **Referral Link**:\n"
+                f"`{ref_link}`"
+            ),
+            reply_markup=make_main_keyboard(chat_id),
+            parse_mode="Markdown"
+        )
+        
+    elif data == "btn_gen_one":
+        allowed = await enforce_membership_and_credits(chat_id, context, settings, consume_credit=True)
+        if not allowed:
+            return
+            
+        await query.edit_message_text("⏳ Rendering your custom receipt... please wait.")
+        try:
+            await render_and_send_receipt(chat_id, context, settings)
+        except Exception as e:
+            await query.message.reply_text(f"❌ Error generating receipt: {e}")
+            
+        await query.message.reply_text(
+            text=f"🧾 Menu controls (Balance: `{settings.get('credits', 0)} bills`):",
+            reply_markup=make_main_keyboard(chat_id),
+            parse_mode="Markdown"
+        )
+        
     elif data == "btn_verify_join":
         is_member, _ = await check_channel_memberships(context.bot, chat_id)
         if is_member:
             if not settings.get("joined_channel", False):
                 settings["joined_channel"] = True
-                settings["credits"] = settings.get("credits", 0) + 3  # Unlock 3 bills
+                settings["credits"] = settings.get("credits", 0) + 3  # Join channel awards exactly 3 bills
                 save_user_settings(chat_id, settings)
                 
                 # Award referrer
@@ -784,7 +887,7 @@ def main():
     app.add_handler(CallbackQueryHandler(handle_callback))
     app.add_handler(MessageHandler(filters.TEXT | filters.PHOTO, handle_text_message))
     
-    print("🧾 Royal Chinese Garden Bill Generator Bot is running...")
+    print("🧾 Indian Cafes & Hotels Bill Generator Bot is running...")
     app.run_polling()
 
 if __name__ == "__main__":

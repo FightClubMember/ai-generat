@@ -8,9 +8,12 @@ def main():
     output_path = "test_output/royal_chinese_garden_bill.png"
     print(f"Generating bill image -> {output_path}...")
     try:
-        img = generate_receipt_image()
+        img, data = generate_receipt_image()
         img.save(output_path)
         print(f"Saved successfully! View the generated bill at {output_path}")
+        print(f"Shop name: {data['store_name']}")
+        print(f"Address: {data['store_addr']}")
+        print(f"Total: {data['total']}")
     except Exception as e:
         print(f"Error generating bill: {e}")
         import traceback

@@ -46,27 +46,113 @@ def get_font(size, bold=False):
             pass
     return ImageFont.load_default()
 
-# ─── Restaurant Items Pool (Based exactly on reference image) ───
+# ─── Dynamic Restaurant Pools (Multiple Indian Cafes & Hotels) ───
 
-STORE_NAME = "ROYAL CHINESE GARDEN"
-STORE_SUBTITLE = "(AUTHENTIC CHINESE CUISINE)"
-STORE_TEL = "022-25118877"
-STORE_GSTIN = "27FFGGH7890P5Z2"
 STORE_FOOTER = "THANK YOU VISIT AGAIN !!!"
 
-CHINESE_ITEMS = [
-    ("Mineral Water", 50.00),
-    ("Lassi", 130.00),
-    ("Malai Kofta", 380.00),
-    ("Aloo Paratha", 160.00),
-    ("Dal Makhani", 320.00),
-    ("Fried Rice", 280.00),
-    ("Chilli Paneer", 360.00),
-    ("Veg Noodles", 240.00),
-    ("Spring Roll", 180.00),
-    ("Veg Manchurian", 260.00),
-    ("Sweet Corn Soup", 140.00),
-    ("Masala Papad", 60.00),
+STORES_POOL = [
+    {
+        "name": "ROYAL CHINESE GARDEN",
+        "subtitle": "(AUTHENTIC CHINESE CUISINE)",
+        "address": "Unit 3, LBS Marg, Ghatkopar West",
+        "city": "Mumbai, India",
+        "tel": "022-25118877",
+        "gstin": "27FFGGH7890P5Z2",
+        "items": [
+            ("Mineral Water", 50.00),
+            ("Lassi", 130.00),
+            ("Malai Kofta", 380.00),
+            ("Aloo Paratha", 160.00),
+            ("Dal Makhani", 320.00),
+            ("Fried Rice", 280.00),
+            ("Chilli Paneer", 360.00),
+            ("Veg Noodles", 240.00),
+            ("Spring Roll", 180.00),
+            ("Veg Manchurian", 260.00),
+            ("Sweet Corn Soup", 140.00),
+            ("Masala Papad", 60.00)
+        ]
+    },
+    {
+        "name": "SHREE DEVI VEG COURT",
+        "subtitle": "(PURE VEG SOUTH INDIAN)",
+        "address": "Shop 12, MG Road, Fort",
+        "city": "Mumbai, India",
+        "tel": "022-22669911",
+        "gstin": "27AAACS1234D1Z5",
+        "items": [
+            ("Masala Dosa", 120.00),
+            ("Idli Sambhar", 80.00),
+            ("Medu Vada", 90.00),
+            ("Filter Coffee", 50.00),
+            ("Onion Uttapam", 110.00),
+            ("Rava Dosa", 130.00),
+            ("Butter Dosa", 140.00),
+            ("Veg Pulao", 180.00),
+            ("Sweet Lassi", 90.00),
+            ("Thums Up", 40.00)
+        ]
+    },
+    {
+        "name": "THE TAJ PALACE HOTEL",
+        "subtitle": "(MUGHLAI FINE DINING)",
+        "address": "Apollo Bunder, Colaba",
+        "city": "Mumbai, India",
+        "tel": "022-66653366",
+        "gstin": "27TAJPH6789K2Z0",
+        "items": [
+            ("Butter Chicken", 480.00),
+            ("Chicken Biryani", 420.00),
+            ("Paneer Tikka", 360.00),
+            ("Tandoori Roti", 40.00),
+            ("Butter Naan", 70.00),
+            ("Dal Tadka", 280.00),
+            ("Veg Kadhai", 320.00),
+            ("Garlic Kebab", 390.00),
+            ("Jeera Rice", 180.00),
+            ("Gulab Jamun", 120.00)
+        ]
+    },
+    {
+        "name": "CAFE COFFEE TIME",
+        "subtitle": "(DELICIOUS SNACKS & BREWS)",
+        "address": "Carter Road, Bandra West",
+        "city": "Mumbai, India",
+        "tel": "022-26448833",
+        "gstin": "27CCFTM4567A1Z3",
+        "items": [
+            ("Cappuccino", 160.00),
+            ("Cafe Latte", 170.00),
+            ("Cold Coffee", 190.00),
+            ("Cheese Sandwich", 150.00),
+            ("Garlic Bread", 120.00),
+            ("Chocolate Brownie", 140.00),
+            ("French Fries", 110.00),
+            ("Veg Burger", 130.00),
+            ("Green Tea", 90.00),
+            ("Vanilla Shake", 160.00)
+        ]
+    },
+    {
+        "name": "UDUPI REFRESHMENTS",
+        "subtitle": "(FAST FOOD & VEG SNACKS)",
+        "address": "Dadar West Station Road",
+        "city": "Mumbai, India",
+        "tel": "022-24335566",
+        "gstin": "27UDUPI9876P2Z9",
+        "items": [
+            ("Mysore Masala Dosa", 130.00),
+            ("Sada Dosa", 90.00),
+            ("Paper Dosa", 150.00),
+            ("Wada Pav (Plate)", 60.00),
+            ("Special Tea", 30.00),
+            ("Poori Bhaji", 100.00),
+            ("Pav Bhaji", 140.00),
+            ("Cheese Pav Bhaji", 170.00),
+            ("Upma", 70.00),
+            ("Sheera", 70.00)
+        ]
+    }
 ]
 
 def random_date():
@@ -76,13 +162,14 @@ def random_date():
     return d.strftime("%d/%m/%Y %H:%M")
 
 def get_receipt_data():
-    """Generates structured random data for the receipt, matching the reference image."""
+    """Generates structured random data selecting a random store from the pool."""
+    store = random.choice(STORES_POOL)
     date_str = random_date()
     receipt_no = ''.join(random.choices(string.digits, k=4))
     
     items = []
     count = random.randint(3, 7)
-    selected = random.sample(CHINESE_ITEMS, count)
+    selected = random.sample(store["items"], count)
     
     for name, u_price in selected:
         qty = random.choices([1, 2], weights=[80, 20])[0]
@@ -99,10 +186,13 @@ def get_receipt_data():
     server_name = random.choice(servers)
     
     return {
-        "store_name": STORE_NAME,
-        "subtitle": STORE_SUBTITLE,
-        "tel_no": STORE_TEL,
-        "gstin": STORE_GSTIN,
+        "store_name": store["name"],
+        "subtitle": store["subtitle"],
+        "store_addr": f"{store['address']}, {store['city']}",
+        "address_line1": store["address"],
+        "address_line2": store["city"],
+        "tel_no": store["tel"],
+        "gstin": store["gstin"],
         "date_str": date_str,
         "receipt_no": receipt_no,
         "items": items,
@@ -137,8 +227,7 @@ def generate_striped_background(width, height):
 # ─── Core Receipt Canvas Generator ───
 
 def draw_receipt_canvas(data, text_color):
-    """Renders the receipt directly onto the striped canvas, full size, edge-to-edge."""
-    width = 380
+    """Renders the receipt directly onto a 3:4 aspect ratio striped canvas."""
     lines = [] # Array of tuples: (text_line, is_bold, is_large)
     
     # Local helper functions for exact character grid formatting (42 characters wide)
@@ -167,8 +256,8 @@ def draw_receipt_canvas(data, text_color):
     lines.append((center_line(store_name.upper()), True, True))   # Large Bold Store Name
     lines.append((center_line(subtitle.upper()), True, False))   # Bold Subtitle
     # Address lines exactly formatted on 2 lines
-    lines.append((center_line("Unit 3, LBS Marg, Ghatkopar West, Mumbai"), False, False))
-    lines.append((center_line("Mumbai, India"), False, False))
+    lines.append((center_line(data["address_line1"]), False, False))
+    lines.append((center_line(data["address_line2"]), False, False))
     lines.append((center_line(f"Tel: {tel_no}"), False, False))
     lines.append((center_line(f"GSTIN: {gstin}"), False, False))
     
@@ -251,9 +340,15 @@ def draw_receipt_canvas(data, text_color):
     for _, _, is_large in lines:
         total_height += 23 if is_large else line_h
         
+    # Enforce 3:4 Aspect Ratio (width = height * 3 / 4)
+    width = total_height * 3 // 4
+    
     # Create the canvas using the striped background directly
     canvas = generate_striped_background(width, total_height)
     draw = ImageDraw.Draw(canvas)
+    
+    # Center the receipt text block horizontally (Roboto Mono 13 size text block is ~336px wide)
+    x_offset = max(10, (width - 336) // 2)
     
     y = padding
     for line_text, is_bold, is_large in lines:
@@ -264,7 +359,7 @@ def draw_receipt_canvas(data, text_color):
             font = font_bold if is_bold else font_reg
             curr_line_h = line_h
             
-        draw.text((10, y), line_text, font=font, fill=text_color)
+        draw.text((x_offset, y), line_text, font=font, fill=text_color)
         y += curr_line_h
         
     return canvas
@@ -274,7 +369,7 @@ def draw_receipt_canvas(data, text_color):
 def generate_receipt_image(*args, **kwargs):
     """
     Main API to generate a restaurant bill image matching the reference image.
-    Outputs the receipt in full edge-to-edge with the striped texture.
+    Outputs the receipt in full edge-to-edge 3:4 aspect ratio with the striped texture.
     """
     text_color = (15, 15, 15)   # Charcoal print ink
     
@@ -282,4 +377,4 @@ def generate_receipt_image(*args, **kwargs):
     data = get_receipt_data()
     
     # 2. Render text directly on the striped canvas and return
-    return draw_receipt_canvas(data, text_color)
+    return draw_receipt_canvas(data, text_color), data
