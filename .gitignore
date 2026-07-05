@@ -1,0 +1,13 @@
+# Secrets
+token.txt
+
+# Local data & generated outputs
+fonts/
+references/
+styles/
+test_output/
+
+# Python Cache
+__pycache__/
+*.pyc
+.DS_Store
