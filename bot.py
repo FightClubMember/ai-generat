@@ -3,6 +3,7 @@ import io
 import json
 import asyncio
 import threading
+from datetime import datetime
 from http.server import SimpleHTTPRequestHandler, HTTPServer
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
@@ -26,6 +27,10 @@ if not TOKEN:
         # Fallback to dummy token or warning (will be resolved before launching)
         TOKEN = "YOUR_BOT_TOKEN_HERE"
 
+# Required Channel for Force-Join Membership check
+# Users must subscribe to this channel to use the bot
+REQUIRED_CHANNEL = os.getenv("REQUIRED_CHANNEL", "@ai_receipt_channel")
+
 # Global state
 active_tasks = {}  # chat_id -> asyncio.Task
 user_settings = {}  # chat_id -> dict
@@ -34,7 +39,10 @@ DEFAULT_SETTINGS = {
     "template": "grocery",
     "realism": "tabletop",
     "currency": "INR",
-    "font": "receipt"
+    "font": "receipt",
+    "credits": 10,          # Start with 10 free credits
+    "joined_channel": False,  # Tracks if they joined and claimed +50 reward
+    "last_claim_date": ""   # Tracks daily bonus claims (YYYY-MM-DD)
 }
 
 TEMPLATE_LABELS = {
@@ -96,6 +104,12 @@ def get_user_settings(chat_id):
                 user_settings[chat_id] = DEFAULT_SETTINGS.copy()
         else:
             user_settings[chat_id] = DEFAULT_SETTINGS.copy()
+    
+    # Ensure default fields are present if loaded from older settings files
+    for k, v in DEFAULT_SETTINGS.items():
+        if k not in user_settings[chat_id]:
+            user_settings[chat_id][k] = v
+            
     return user_settings[chat_id]
 
 def save_user_settings(chat_id, settings):
@@ -107,13 +121,108 @@ def save_user_settings(chat_id, settings):
     except Exception as e:
         print(f"Failed to save settings for {chat_id}: {e}")
 
+# ─── Access Control: Channel check & Credits System ───
+
+async def check_channel_member(bot, user_id):
+    """Checks if a user is a member/admin of the required Telegram channel."""
+    if not REQUIRED_CHANNEL:
+        return True
+    try:
+        member = await bot.get_chat_member(chat_id=REQUIRED_CHANNEL, user_id=user_id)
+        # Status can be: 'creator', 'administrator', 'member', 'restricted', 'left', 'kicked'
+        if member.status in ["creator", "administrator", "member"]:
+            return True
+    except Exception as e:
+        print(f"Channel membership check failed for user {user_id}: {e}")
+        # Bypasses check during testing if the bot is not configured in the channel yet
+        if "Chat not found" in str(e) or "chat not found" in str(e) or "bot is not a member" in str(e):
+            print("WARNING: Chat not found or bot is not admin in channel. Bypassing check for development.")
+            return True
+    return False
+
+async def enforce_membership_and_credits(chat_id, context, settings, consume_credit=False):
+    """
+    Verifies channel membership and credit balance.
+    Blocks action and prompts re-joining or claiming daily credits if requirements are unmet.
+    If membership was lost, deducts the 50-credit join reward.
+    """
+    # 1. Enforce Channel Membership
+    is_member = await check_channel_member(context.bot, chat_id)
+    
+    if not is_member:
+        # User left the channel! Deduct their reward credits.
+        if settings.get("joined_channel", False):
+            settings["joined_channel"] = False
+            settings["credits"] = max(0, settings.get("credits", 10) - 50)
+            save_user_settings(chat_id, settings)
+            await context.bot.send_message(
+                chat_id=chat_id,
+                text="⚠️ **Warning**: You left our official channel! **50 credits** have been deducted from your balance."
+            )
+            
+        # Display block panel
+        keyboard = [
+            [InlineKeyboardButton("📢 Join Channel", url=f"https://t.me/{REQUIRED_CHANNEL.replace('@', '')}")],
+            [InlineKeyboardButton("🔄 Verify Membership & Claim +50 Credits", callback_data="btn_verify_join")]
+        ]
+        
+        await context.bot.send_message(
+            chat_id=chat_id,
+            text=(
+                f"⚠️ **Access Restricted!**\n\n"
+                f"To use the bot, you must be a member of our official channel:\n"
+                f"👉 {REQUIRED_CHANNEL}\n\n"
+                f"Join now and click verify to instantly unlock **50 free credits**!"
+            ),
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode="Markdown"
+        )
+        return False
+        
+    # User is in the channel. If not already marked, reward them with +50 credits.
+    if not settings.get("joined_channel", False):
+        settings["joined_channel"] = True
+        settings["credits"] = settings.get("credits", 10) + 50
+        save_user_settings(chat_id, settings)
+        await context.bot.send_message(
+            chat_id=chat_id,
+            text="🎉 **Thank you for joining our channel!**\nAdded **+50 free credits** to your balance."
+        )
+
+    # 2. Enforce Credits
+    credits = settings.get("credits", 10)
+    if consume_credit:
+        if credits < 1:
+            keyboard = [
+                [InlineKeyboardButton("🎁 Claim Daily Credits (+5)", callback_data="btn_claim_daily")],
+                [InlineKeyboardButton("⬅️ Main Menu", callback_data="btn_menu_main")]
+            ]
+            await context.bot.send_message(
+                chat_id=chat_id,
+                text=(
+                    "❌ **Out of Credits!**\n\n"
+                    "You have 0 credits remaining.\n"
+                    "Please claim your daily bonus below, or stay subscribed to our channel to unlock more benefits."
+                ),
+                reply_markup=InlineKeyboardMarkup(keyboard),
+                parse_mode="Markdown"
+            )
+            return False
+        else:
+            # Deduct 1 credit
+            settings["credits"] = credits - 1
+            save_user_settings(chat_id, settings)
+            
+    return True
+
+# ─── Rendering Helper ───
+
 async def render_and_send_receipt(chat_id, context, settings, count_label=""):
     """Runs PIL receipt rendering in a background thread and sends it as a photo."""
     # Load user's reference style if any
     custom_style = load_user_style(chat_id)
     
     # Run the heavy image rendering operations in asyncio.to_thread
-    # to avoid blocking the main asyncio event loop.
     img = await asyncio.to_thread(
         generate_receipt_image,
         template=settings["template"],
@@ -133,21 +242,35 @@ async def render_and_send_receipt(chat_id, context, settings, count_label=""):
         caption += f" ({count_label})"
     if custom_style and custom_style.get("detected"):
         caption += "\n🎨 Styled matching your reference photo."
+    
+    # Show remaining balance
+    caption += f"\n💰 Remaining Balance: `{settings.get('credits', 10)} credits`"
         
     await context.bot.send_photo(
         chat_id=chat_id,
         photo=buf,
         caption=caption,
+        parse_mode="Markdown",
         filename="receipt.png"
     )
 
 async def generation_stream_task(chat_id, context, settings):
-    """Loop that continuously generates and sends receipts with a random delay."""
+    """Loop that continuously generates and sends receipts, checking requirements and consuming credits."""
     count = 1
     try:
         while True:
+            # Fetch latest settings to check credit count
+            settings = get_user_settings(chat_id)
+            
+            # Verify channel subscription and consume 1 credit
+            allowed = await enforce_membership_and_credits(chat_id, context, settings, consume_credit=True)
+            if not allowed:
+                # membership checks or credit limits blocked generation, stop stream
+                break
+                
             await render_and_send_receipt(chat_id, context, settings, count_label=f"#{count}")
             count += 1
+            
             # Random delay between 1.5 and 3.5 seconds
             import random
             delay = random.uniform(1.5, 3.5)
@@ -182,10 +305,13 @@ def make_main_keyboard(chat_id):
         ]
     ]
     
-    # Show "Reset Style" option if they have a reference image color style loaded
+    # Bottom control row: Reset style (if loaded) and claim daily bonus
+    row3 = []
     style = load_user_style(chat_id)
     if style:
-        keyboard.append([InlineKeyboardButton("🧹 Reset Reference Style", callback_data="btn_reset_style")])
+        row3.append(InlineKeyboardButton("🧹 Reset Style", callback_data="btn_reset_style"))
+    row3.append(InlineKeyboardButton("🎁 Daily Bonus", callback_data="btn_claim_daily"))
+    keyboard.append(row3)
         
     return InlineKeyboardMarkup(keyboard)
 
@@ -208,11 +334,14 @@ def make_config_keyboard(settings):
 async def start_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
     settings = get_user_settings(chat_id)
+    credits = settings.get("credits", 10)
     
     welcome_text = (
         "📸 **Welcome to Premium Receipt Bot!**\n\n"
         "To start generating, **please send/upload an inspiration receipt photo first**.\n"
         "I will extract its exact paper and ink colors to generate new matching receipts!\n\n"
+        f"💰 **Your Balance**: `{credits} credits`\n"
+        f"*(Generations cost 1 credit each. Join {REQUIRED_CHANNEL} for +50 free credits!)*\n\n"
         "💡 **Features**:\n"
         "• **Indian Formats**: Supports Indian Food (Saravana/CCD), Groceries (Kirana/D-Mart), Clothing (Manyavar/Fabindia), and Petrol Pumps (litres/₹).\n"
         "• **Interactive Settings**: Cycle templates, realism filters, and currencies.\n"
@@ -236,8 +365,13 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     # --- Navigation ---
     if data == "btn_menu_main":
+        credits = settings.get("credits", 10)
         await query.edit_message_text(
-            text="🧾 **Premium Receipt Generator Bot**\n\nUse the buttons below to control the bot:",
+            text=(
+                f"🧾 **Premium Receipt Generator Bot**\n\n"
+                f"💰 **Your Balance**: `{credits} credits`\n"
+                f"Use the buttons below to control the bot:"
+            ),
             reply_markup=make_main_keyboard(chat_id),
             parse_mode="Markdown"
         )
@@ -261,8 +395,12 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
             return
             
+        # Verify force join channel and consume 1 credit
+        allowed = await enforce_membership_and_credits(chat_id, context, settings, consume_credit=True)
+        if not allowed:
+            return
+            
         # Generate one receipt in background task
-        # Edit keyboard to show loading state
         await query.edit_message_text(
             text="⏳ Rendering your custom receipt... please wait.",
             reply_markup=None
@@ -274,8 +412,9 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             
         # Restore main menu
         await query.message.reply_text(
-            text="🧾 Menu controls:",
-            reply_markup=make_main_keyboard(chat_id)
+            text=f"🧾 Menu controls (Balance: `{settings.get('credits', 10)} credits`):",
+            reply_markup=make_main_keyboard(chat_id),
+            parse_mode="Markdown"
         )
         
     elif data == "btn_start_stream":
@@ -287,6 +426,11 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 reply_markup=make_main_keyboard(chat_id),
                 parse_mode="Markdown"
             )
+            return
+            
+        # Verify force join channel first (don't consume yet, stream task consumes per loop)
+        allowed = await enforce_membership_and_credits(chat_id, context, settings, consume_credit=False)
+        if not allowed:
             return
             
         if chat_id in active_tasks:
@@ -319,7 +463,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         
     elif data == "btn_reset_style":
-        # Delete style file
+        # Delete style files
         style_path = f"styles/{chat_id}_style.json"
         if os.path.exists(style_path):
             try:
@@ -327,7 +471,6 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             except Exception:
                 pass
         
-        # Also clean reference image if any
         ref_path = f"references/{chat_id}_ref.png"
         if os.path.exists(ref_path):
             try:
@@ -341,6 +484,65 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parse_mode="Markdown"
         )
         
+    # --- Verify Channel Membership (Claim +50 Reward) ---
+    elif data == "btn_verify_join":
+        is_member = await check_channel_member(context.bot, chat_id)
+        if is_member:
+            if not settings.get("joined_channel", False):
+                settings["joined_channel"] = True
+                settings["credits"] = settings.get("credits", 10) + 50
+                save_user_settings(chat_id, settings)
+                success_text = "🎉 **Membership Verified!**\n\nThank you for joining our channel! Added **+50 free credits** to your balance."
+            else:
+                success_text = "🎉 **Membership Confirmed!**\n\nYou are still subscribed to our channel. Your credits are active."
+                
+            await query.edit_message_text(
+                text=success_text,
+                reply_markup=make_main_keyboard(chat_id),
+                parse_mode="Markdown"
+            )
+        else:
+            # Re-display join prompt with error
+            await query.edit_message_text(
+                text=(
+                    f"❌ **Verification Failed!**\n\n"
+                    f"It seems you have not joined our channel yet.\n"
+                    f"Join here first:\n👉 {REQUIRED_CHANNEL}\n\n"
+                    f"Then click verify below again to claim your +50 credits!"
+                ),
+                reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton("📢 Join Channel", url=f"https://t.me/{REQUIRED_CHANNEL.replace('@', '')}")],
+                    [InlineKeyboardButton("🔄 Verify Membership & Claim +50 Credits", callback_data="btn_verify_join")]
+                ]),
+                parse_mode="Markdown"
+            )
+            
+    # --- Daily Credits Claims (+5 Credits) ---
+    elif data == "btn_claim_daily":
+        today_str = datetime.now().strftime("%Y-%m-%d")
+        last_claim = settings.get("last_claim_date", "")
+        
+        if last_claim == today_str:
+            await query.edit_message_text(
+                text="❌ **Already Claimed!**\n\nYou have already claimed your daily bonus today. Come back tomorrow!",
+                reply_markup=make_main_keyboard(chat_id),
+                parse_mode="Markdown"
+            )
+        else:
+            settings["last_claim_date"] = today_str
+            settings["credits"] = settings.get("credits", 10) + 5
+            save_user_settings(chat_id, settings)
+            
+            await query.edit_message_text(
+                text=(
+                    f"🎉 **Daily Bonus Claimed!**\n\n"
+                    f"Added **+5 credits** to your balance.\n"
+                    f"💰 Total Balance: `{settings['credits']} credits`"
+                ),
+                reply_markup=make_main_keyboard(chat_id),
+                parse_mode="Markdown"
+            )
+            
     # --- Configuration Cycles ---
     elif data == "cycle_template":
         templates = ["grocery", "cafe", "retail", "gas"]
@@ -381,7 +583,13 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Processes user reference images, extracts colors, and activates style matching."""
     chat_id = update.effective_chat.id
+    settings = get_user_settings(chat_id)
     
+    # Enforce channel membership (don't consume credit for uploading photos)
+    allowed = await enforce_membership_and_credits(chat_id, context, settings, consume_credit=False)
+    if not allowed:
+        return
+        
     # Show typing action while processing
     await context.bot.send_chat_action(chat_id=chat_id, action="typing")
     
