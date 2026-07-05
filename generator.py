@@ -49,14 +49,14 @@ def get_font(size, bold=False):
 
 # ─── Data Pools for Templates ───
 
-CAFE_STORES = [
+# --- Western Pools ---
+US_CAFE_STORES = [
     ("The Daily Grind", "102 Espresso Way, Seattle, WA"),
     ("Espresso Express", "505 Brew Ave, Portland, OR"),
     ("Bean & Leaf Co.", "80 Coffee Rd, Boston, MA"),
     ("Brewed Awakening", "44 Latte Blvd, Austin, TX"),
 ]
-
-CAFE_ITEMS = [
+US_CAFE_ITEMS = [
     ("Caramel Macchiato", 4.95),
     ("Vanilla Latte", 4.50),
     ("Cold Brew Coffee", 3.95),
@@ -68,15 +68,13 @@ CAFE_ITEMS = [
     ("Bagel w/ Cream Cheese", 3.95),
     ("Lemon Loaf Cake", 3.25),
 ]
-
-GROCERY_STORES = [
+US_GROCERY_STORES = [
     ("MegaMart Grocery", "9900 Supercenter Dr, Bentonville, AR"),
     ("Fresh Foods Market", "250 Organic Way, Chicago, IL"),
     ("Pantry Plus", "1212 Staples St, Atlanta, GA"),
     ("Green Grocer", "400 Farmer Rd, Portland, OR"),
 ]
-
-GROCERY_ITEMS = [
+US_GROCERY_ITEMS = [
     ("Organic Milk 1G", 4.29),
     ("Farm Fresh Eggs 12ct", 3.89),
     ("Whole Wheat Bread", 2.49),
@@ -90,15 +88,13 @@ GROCERY_ITEMS = [
     ("Paper Towels 6pk", 7.99),
     ("Dish Soap 24oz", 2.99),
 ]
-
-RETAIL_STORES = [
+US_RETAIL_STORES = [
     ("AURA Boutique", "450 Fashion Ave, New York, NY"),
     ("LUXE Apparel", "888 Rodeo Dr, Beverly Hills, CA"),
     ("PRISM Electronics", "100 Tech Plaza, San Jose, CA"),
     ("VERDANT Home Goods", "33 Design Ln, Chicago, IL"),
 ]
-
-RETAIL_ITEMS = [
+US_RETAIL_ITEMS = [
     ("Minimalist Linen Shirt", 68.00),
     ("Designer Leather Wallet", 120.00),
     ("Premium Bluetooth Earbuds", 149.00),
@@ -109,15 +105,13 @@ RETAIL_ITEMS = [
     ("Wool Blend Socks Pack", 22.00),
     ("Smart Water Bottle", 39.00),
 ]
-
-GAS_STORES = [
+US_GAS_STORES = [
     ("APEX Fuel & Go", "1100 Highway 66, Flagstaff, AZ"),
     ("Summit Gas Station", "87 Interstate Rd, Denver, CO"),
     ("Star Express Convenience", "405 Pump St, Dallas, TX"),
     ("Pioneer Fuel", "320 Tanker Rd, Columbus, OH"),
 ]
-
-GAS_ITEMS = [
+US_GAS_ITEMS = [
     ("Monster Energy 16oz", 2.99),
     ("Glazed Donut", 1.29),
     ("Beef Jerky Original", 6.49),
@@ -126,11 +120,83 @@ GAS_ITEMS = [
     ("Bottled Water 1L", 1.99),
 ]
 
+# --- Indian Pools ---
+IN_CAFE_STORES = [
+    ("Saravana Bhavan", "Connaught Place, New Delhi, DL"),
+    ("Haldiram's Sweets", "MG Road, Bengaluru, KA"),
+    ("Barbeque Nation", "Andheri West, Mumbai, MH"),
+    ("Karim's Restaurant", "Jama Masjid, New Delhi, DL"),
+    ("Cafe Coffee Day", "Park Street, Kolkata, WB"),
+]
+IN_CAFE_ITEMS = [
+    ("Masala Dosa", 120.00),
+    ("Paneer Tikka Roll", 180.00),
+    ("Chicken Biryani", 280.00),
+    ("Samosa Chai Combo", 75.00),
+    ("Filter Coffee", 60.00),
+    ("Mango Lassi", 90.00),
+    ("Chola Bhatura", 150.00),
+    ("Garlic Naan", 60.00),
+    ("Paneer Butter Masala", 240.00),
+    ("Gulab Jamun (2pcs)", 80.00),
+]
+IN_GROCERY_STORES = [
+    ("Reliance Smart Bazaar", "Sec 18, Noida, UP"),
+    ("D-Mart Hypermarket", "Ghatkopar East, Mumbai, MH"),
+    ("JioMart Kirana Store", "Indiranagar, Bengaluru, KA"),
+    ("Spencer's Hyper", "Salt Lake, Kolkata, WB"),
+]
+IN_GROCERY_ITEMS = [
+    ("Aashirvaad Atta 5kg", 320.00),
+    ("Fortune Mustard Oil 1L", 180.00),
+    ("Amul Butter 500g", 275.00),
+    ("Tata Salt 1kg", 28.00),
+    ("Maggi Noodles 12pk", 168.00),
+    ("Basmati Rice 5kg", 580.00),
+    ("Surf Excel 1kg", 145.00),
+    ("Dettol Liquid Handwash", 99.00),
+    ("Tata Tea Premium 500g", 220.00),
+    ("Toor Dal Premium 1kg", 160.00),
+    ("Amul Gold Milk 1L", 66.00),
+    ("Catch Spices Haldi 100g", 35.00),
+]
+IN_RETAIL_STORES = [
+    ("Fabindia Ethnic Wear", "Connaught Place, New Delhi, DL"),
+    ("Manyavar Sherwani", "Linking Road, Mumbai, MH"),
+    ("Reliance Trends", "MG Road, Bengaluru, KA"),
+    ("Pantaloons Fashion", "Hazratganj, Lucknow, UP"),
+    ("Max Style Store", "T Nagar, Chennai, TN"),
+]
+IN_RETAIL_ITEMS = [
+    ("Premium Cotton Kurta", 1499.00),
+    ("Designer Silk Saree", 4500.00),
+    ("Cotton Chinos", 1299.00),
+    ("Printed Silk Dupatta", 599.00),
+    ("Nehru Jacket Formal", 1999.00),
+    ("Casual Denim Jeans", 1699.00),
+    ("Ethnic Leather Sandals", 999.00),
+    ("Sherwani Gold Premium", 8500.00),
+    ("Linen Casual Shirt", 1199.00),
+]
+IN_GAS_STORES = [
+    ("Indian Oil Petrol Pump", "Ring Road, New Delhi, DL"),
+    ("Bharat Petroleum (BPCL)", "Andheri East, Mumbai, MH"),
+    ("Hindustan Petroleum", "Koramangala, Bengaluru, KA"),
+    ("Shell India Station", "Ecr Road, Chennai, TN"),
+]
+IN_GAS_ITEMS = [
+    ("Engine Oil 1L (Servo)", 380.00),
+    ("Car Perfume (Gel)", 250.00),
+    ("Packaged Water 1L", 20.00),
+    ("Snacks Namkeen Bhujia", 45.00),
+    ("Windshield Washer Fluid", 150.00),
+]
+
 CURRENCIES = {
+    "INR": ("₹", "INR"),
     "USD": ("$", "USD"),
     "EUR": ("€", "EUR"),
-    "GBP": ("£", "GBP"),
-    "JPY": ("¥", "JPY")
+    "GBP": ("£", "GBP")
 }
 
 # ─── Helper Functions ───
@@ -142,7 +208,7 @@ def random_date():
     return d.strftime("%Y-%m-%d %H:%M")
 
 def get_receipt_data(template_name, currency_symbol):
-    """Generates structured random data for the receipt."""
+    """Generates structured random data for the receipt, matching the currency style (Indian or Western)."""
     date_str = random_date()
     card = "**** **** **** " + ''.join(random.choices(string.digits, k=4))
     receipt_no = ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
@@ -150,58 +216,83 @@ def get_receipt_data(template_name, currency_symbol):
     
     items = []
     
+    # Check if we should use Indian pools (when currency is ₹/INR)
+    is_indian = (currency_symbol == "₹")
+    
     if template_name == "cafe":
-        store_name, store_addr = random.choice(CAFE_STORES)
-        item_pool = CAFE_ITEMS
+        store_name, store_addr = random.choice(IN_CAFE_STORES if is_indian else US_CAFE_STORES)
+        item_pool = IN_CAFE_ITEMS if is_indian else US_CAFE_ITEMS
         count = random.randint(2, 6)
-        for _ in range(count):
-            name, u_price = random.choice(item_pool)
-            qty = random.choices([1, 2, 3], weights=[80, 15, 5])[0]
+        # Select unique items
+        selected_items = random.sample(item_pool, min(count, len(item_pool)))
+        for name, u_price in selected_items:
+            qty = random.choices([1, 2, 3], weights=[85, 12, 3])[0]
             price = round(u_price * qty, 2)
             items.append((name, qty, price))
             
     elif template_name == "grocery":
-        store_name, store_addr = random.choice(GROCERY_STORES)
-        item_pool = GROCERY_ITEMS
-        count = random.randint(4, 10)
-        for _ in range(count):
-            name, u_price = random.choice(item_pool)
-            qty = random.choices([1, 2, 3], weights=[70, 20, 10])[0]
+        store_name, store_addr = random.choice(IN_GROCERY_STORES if is_indian else US_GROCERY_STORES)
+        item_pool = IN_GROCERY_ITEMS if is_indian else US_GROCERY_ITEMS
+        count = random.randint(4, 9)
+        selected_items = random.sample(item_pool, min(count, len(item_pool)))
+        for name, u_price in selected_items:
+            qty = random.choices([1, 2, 3], weights=[75, 20, 5])[0]
             price = round(u_price * qty, 2)
             items.append((name, qty, price))
             
     elif template_name == "retail":
-        store_name, store_addr = random.choice(RETAIL_STORES)
-        item_pool = RETAIL_ITEMS
-        count = random.randint(1, 4)
-        for _ in range(count):
-            name, u_price = random.choice(item_pool)
+        store_name, store_addr = random.choice(IN_RETAIL_STORES if is_indian else US_RETAIL_STORES)
+        item_pool = IN_RETAIL_ITEMS if is_indian else US_RETAIL_ITEMS
+        count = random.randint(1, 3)
+        selected_items = random.sample(item_pool, min(count, len(item_pool)))
+        for name, u_price in selected_items:
             qty = 1
             price = round(u_price * qty, 2)
             items.append((name, qty, price))
             
     else:  # gas
-        store_name, store_addr = random.choice(GAS_STORES)
-        # Gas receipts always have fuel as the primary item
-        octane = random.choice([87, 89, 93])
-        fuel_types = {87: "Regular 87", 89: "Plus 89", 93: "Premium 93"}
-        gallons = round(random.uniform(8.0, 18.0), 3)
-        price_per_gal = round(random.uniform(3.19, 4.69), 2)
-        fuel_price = round(gallons * price_per_gal, 2)
-        
-        items.append((f"Unleaded {fuel_types[octane]}", f"{gallons:.3f} G", fuel_price))
-        
-        # Optionally add inside store items
-        count = random.randint(0, 3)
-        for _ in range(count):
-            name, u_price = random.choice(GAS_ITEMS)
-            qty = random.choices([1, 2], weights=[90, 10])[0]
-            price = round(u_price * qty, 2)
-            items.append((name, qty, price))
+        store_name, store_addr = random.choice(IN_GAS_STORES if is_indian else US_GAS_STORES)
+        if is_indian:
+            # Indian petrol/diesel pump
+            fuel_type = random.choice(["Petrol Speed", "Power Diesel", "Normal Petrol"])
+            litres = round(random.uniform(5.0, 45.0), 2)
+            price_per_litre = round(random.uniform(94.50, 106.80), 2)
+            fuel_price = round(litres * price_per_litre, 2)
+            items.append((f"{fuel_type}", f"{litres:.2f} L", fuel_price))
+            
+            # Optionally add convenience store items
+            count = random.randint(0, 2)
+            selected_items = random.sample(IN_GAS_ITEMS, min(count, len(IN_GAS_ITEMS)))
+            for name, u_price in selected_items:
+                qty = random.choices([1, 2], weights=[95, 5])[0]
+                price = round(u_price * qty, 2)
+                items.append((name, qty, price))
+        else:
+            # US Gas receipts always have fuel as the primary item
+            octane = random.choice([87, 89, 93])
+            fuel_types = {87: "Regular 87", 89: "Plus 89", 93: "Premium 93"}
+            gallons = round(random.uniform(8.0, 18.0), 3)
+            price_per_gal = round(random.uniform(3.19, 4.69), 2)
+            fuel_price = round(gallons * price_per_gal, 2)
+            items.append((f"Unleaded {fuel_types[octane]}", f"{gallons:.3f} G", fuel_price))
+            
+            # Optionally add inside store items
+            count = random.randint(0, 2)
+            selected_items = random.sample(US_GAS_ITEMS, min(count, len(US_GAS_ITEMS)))
+            for name, u_price in selected_items:
+                qty = random.choices([1, 2], weights=[90, 10])[0]
+                price = round(u_price * qty, 2)
+                items.append((name, qty, price))
             
     subtotal = round(sum(p for _, _, p in items), 2)
-    tax_rate = round(random.uniform(0.05, 0.09), 3)
-    tax = round(subtotal * tax_rate, 2)
+    # CGST/SGST for Indian receipts (typical GST is 5% or 18%)
+    if is_indian:
+        tax_rate = 0.05 if template_name in ["cafe", "grocery"] else 0.18
+        tax = round(subtotal * tax_rate, 2)
+    else:
+        tax_rate = round(random.uniform(0.05, 0.09), 3)
+        tax = round(subtotal * tax_rate, 2)
+        
     total = round(subtotal + tax, 2)
     
     return {
@@ -378,7 +469,11 @@ def draw_receipt_canvas(data, template_name, currency_symbol, font_style, bg_col
         lines.append(("", False))
         lines.append(("─" * 38, False))
         lines.append((f"   SUBTOTAL{'':14s}{currency_symbol}{subtotal:>6.2f}", False))
-        lines.append((f"   TAX ({tax_rate*100:.1f}%){'':10s}{currency_symbol}{tax:>6.2f}", False))
+        if currency_symbol == "₹":
+            lines.append((f"   CGST ({tax_rate*100/2:.1f}%){'':11s}{currency_symbol}{tax/2:>6.2f}", False))
+            lines.append((f"   SGST ({tax_rate*100/2:.1f}%){'':11s}{currency_symbol}{tax/2:>6.2f}", False))
+        else:
+            lines.append((f"   TAX ({tax_rate*100:.1f}%){'':10s}{currency_symbol}{tax:>6.2f}", False))
         lines.append((f"   TOTAL{'':17s}{currency_symbol}{total:>6.2f}", True))
         lines.append(("─" * 38, False))
         lines.append((f"   Paid via Card: {card}", False))
@@ -409,7 +504,11 @@ def draw_receipt_canvas(data, template_name, currency_symbol, font_style, bg_col
         lines.append(("", False))
         lines.append(("─" * 38, False))
         lines.append((f"   SUBTOTAL{'':14s}{currency_symbol}{subtotal:>6.2f}", False))
-        lines.append((f"   TAX ({tax_rate*100:.1f}%){'':10s}{currency_symbol}{tax:>6.2f}", False))
+        if currency_symbol == "₹":
+            lines.append((f"   CGST ({tax_rate*100/2:.1f}%){'':11s}{currency_symbol}{tax/2:>6.2f}", False))
+            lines.append((f"   SGST ({tax_rate*100/2:.1f}%){'':11s}{currency_symbol}{tax/2:>6.2f}", False))
+        else:
+            lines.append((f"   TAX ({tax_rate*100:.1f}%){'':10s}{currency_symbol}{tax:>6.2f}", False))
         lines.append((f"   TOTAL{'':17s}{currency_symbol}{total:>6.2f}", True))
         lines.append(("─" * 38, False))
         lines.append((f"   DEBIT CARD: {card}", False))
@@ -435,7 +534,11 @@ def draw_receipt_canvas(data, template_name, currency_symbol, font_style, bg_col
             
         lines.append(("─" * 38, False))
         lines.append((f"   Subtotal{'':14s}{currency_symbol}{subtotal:>6.2f}", False))
-        lines.append((f"   Tax ({tax_rate*100:.1f}%){'':10s}{currency_symbol}{tax:>6.2f}", False))
+        if currency_symbol == "₹":
+            lines.append((f"   CGST ({tax_rate*100/2:.1f}%){'':11s}{currency_symbol}{tax/2:>6.2f}", False))
+            lines.append((f"   SGST ({tax_rate*100/2:.1f}%){'':11s}{currency_symbol}{tax/2:>6.2f}", False))
+        else:
+            lines.append((f"   Tax ({tax_rate*100:.1f}%){'':10s}{currency_symbol}{tax:>6.2f}", False))
         lines.append((f"   Total Amount{'':10s}{currency_symbol}{total:>6.2f}", True))
         lines.append(("─" * 38, False))
         lines.append((f"   Transaction Card: {card}", False))
@@ -456,8 +559,10 @@ def draw_receipt_canvas(data, template_name, currency_symbol, font_style, bg_col
         
         # First item is always fuel (different quantity type)
         fuel_name, fuel_gal, fuel_price = items[0]
+        unit_type = "L" if "L" in fuel_gal else "G"
+        qty_val = float(fuel_gal.split()[0])
         lines.append((f"   {fuel_name:<20} {currency_symbol}{fuel_price:>6.2f}", False))
-        lines.append((f"     {fuel_gal} @ {currency_symbol}{fuel_price/float(fuel_gal.split()[0]):.3f}/G", False))
+        lines.append((f"     {fuel_gal} @ {currency_symbol}{fuel_price/qty_val:.2f}/{unit_type}", False))
         
         # Rest of inside items
         for name, qty, price in items[1:]:
@@ -466,7 +571,11 @@ def draw_receipt_canvas(data, template_name, currency_symbol, font_style, bg_col
         lines.append(("", False))
         lines.append(("─" * 38, False))
         lines.append((f"   SUBTOTAL{'':14s}{currency_symbol}{subtotal:>6.2f}", False))
-        lines.append((f"   TAX ({tax_rate*100:.1f}%){'':10s}{currency_symbol}{tax:>6.2f}", False))
+        if currency_symbol == "₹":
+            lines.append((f"   CGST ({tax_rate*100/2:.1f}%){'':11s}{currency_symbol}{tax/2:>6.2f}", False))
+            lines.append((f"   SGST ({tax_rate*100/2:.1f}%){'':11s}{currency_symbol}{tax/2:>6.2f}", False))
+        else:
+            lines.append((f"   TAX ({tax_rate*100:.1f}%){'':10s}{currency_symbol}{tax:>6.2f}", False))
         lines.append((f"   TOTAL{'':17s}{currency_symbol}{total:>6.2f}", True))
         lines.append(("─" * 38, False))
         lines.append((f"   CREDIT CARD: {card}", False))

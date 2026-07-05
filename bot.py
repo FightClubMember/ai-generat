@@ -33,15 +33,15 @@ user_settings = {}  # chat_id -> dict
 DEFAULT_SETTINGS = {
     "template": "grocery",
     "realism": "tabletop",
-    "currency": "USD",
+    "currency": "INR",
     "font": "receipt"
 }
 
 TEMPLATE_LABELS = {
-    "grocery": "🛒 Grocery Store",
-    "cafe": "☕ Coffee Cafe",
-    "retail": "👗 Luxe Retail",
-    "gas": "⛽ Fuel Gas Station"
+    "grocery": "🛒 Grocery (Kirana / D-Mart)",
+    "cafe": "🍲 Food (Restaurant / Cafe)",
+    "retail": "👗 Cloth (Apparel / Manyavar)",
+    "gas": "⛽ Petrol Pump (Fuel / IOCL)"
 }
 
 REALISM_LABELS = {
@@ -51,10 +51,10 @@ REALISM_LABELS = {
 }
 
 CURRENCY_LABELS = {
+    "INR": "₹ INR",
     "USD": "$ USD",
     "EUR": "€ EUR",
-    "GBP": "£ GBP",
-    "JPY": "¥ JPY"
+    "GBP": "£ GBP"
 }
 
 FONT_LABELS = {
@@ -149,7 +149,6 @@ async def generation_stream_task(chat_id, context, settings):
             await render_and_send_receipt(chat_id, context, settings, count_label=f"#{count}")
             count += 1
             # Random delay between 1.5 and 3.5 seconds
-            delay = round(asyncio.to_thread(lambda: float(io.open.__self__.random().uniform(1.5, 3.5))) if hasattr(io, "open") else 2.5) # simple random wait
             import random
             delay = random.uniform(1.5, 3.5)
             await asyncio.sleep(delay)
@@ -211,13 +210,14 @@ async def start_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     settings = get_user_settings(chat_id)
     
     welcome_text = (
-        "🧾 **Premium Receipt Generator Bot**\n\n"
-        "Create high-quality, realistic receipts instantly!\n\n"
+        "📸 **Welcome to Premium Receipt Bot!**\n\n"
+        "To start generating, **please send/upload an inspiration receipt photo first**.\n"
+        "I will extract its exact paper and ink colors to generate new matching receipts!\n\n"
         "💡 **Features**:\n"
-        "• **Interactive Settings**: Cycle templates, realism style, and currency.\n"
-        "• **Photo Realism**: Tabletop mode overlays the receipt on a dark wood or slate surface with perspective tilt and realistic shadows.\n"
-        "• **Color Style Matching**: Send me a photo of a receipt, and I will analyze and extract the paper/ink colors to generate receipts in that color style!\n\n"
-        "Use the buttons below to control the bot:"
+        "• **Indian Formats**: Supports Indian Food (Saravana/CCD), Groceries (Kirana/D-Mart), Clothing (Manyavar/Fabindia), and Petrol Pumps (litres/₹).\n"
+        "• **Interactive Settings**: Cycle templates, realism filters, and currencies.\n"
+        "• **Photo Realism**: Tabletop mode overlays the receipt on a dark wood or slate surface with perspective tilt, drop shadows, and 3D paper folds.\n\n"
+        "⚠️ *You must send an inspiration photo before you can generate.*"
     )
     
     await update.message.reply_text(
@@ -251,6 +251,16 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
     # --- Action Buttons ---
     elif data == "btn_gen_one":
+        # Check if they have sent an inspiration photo
+        style = load_user_style(chat_id)
+        if not style:
+            await query.edit_message_text(
+                text="📸 **Inspiration Photo Required!**\n\nPlease upload/send a receipt photo first so I can analyze its style and layout to make the same receipt!",
+                reply_markup=make_main_keyboard(chat_id),
+                parse_mode="Markdown"
+            )
+            return
+            
         # Generate one receipt in background task
         # Edit keyboard to show loading state
         await query.edit_message_text(
@@ -269,6 +279,16 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         
     elif data == "btn_start_stream":
+        # Check if they have sent an inspiration photo
+        style = load_user_style(chat_id)
+        if not style:
+            await query.edit_message_text(
+                text="📸 **Inspiration Photo Required!**\n\nPlease upload/send a receipt photo first so I can analyze its style and layout to make the same receipt!",
+                reply_markup=make_main_keyboard(chat_id),
+                parse_mode="Markdown"
+            )
+            return
+            
         if chat_id in active_tasks:
             await query.edit_message_text(
                 text="🔄 Stream is already active!",
@@ -341,7 +361,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_reply_markup(reply_markup=make_config_keyboard(settings))
         
     elif data == "cycle_currency":
-        currencies = ["USD", "EUR", "GBP", "JPY"]
+        currencies = ["INR", "USD", "EUR", "GBP"]
         current = settings["currency"]
         next_curr = currencies[(currencies.index(current) + 1) % len(currencies)]
         settings["currency"] = next_curr
