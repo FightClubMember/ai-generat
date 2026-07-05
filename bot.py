@@ -404,6 +404,23 @@ async def execute_broadcast(message_to_copy, context):
 
 # ─── Command Handlers ───
 
+async def broadcast_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    if user_id != ADMIN_ID:
+        await update.message.reply_text("❌ Unauthorized.")
+        return
+        
+    admin_states[user_id] = "awaiting_broadcast"
+    cancel_markup = InlineKeyboardMarkup([[InlineKeyboardButton("❌ Cancel Karein", callback_data="btn_cancel_admin")]])
+    await update.message.reply_text(
+        text=(
+            "📢 **Awaiting Broadcast Content**\n\n"
+            "Ab aap jo bhi message sabhi users ko bhejna chahte hain, use yahan send ya forward karein.\n"
+            "Aap photos, videos, styled text, button kuch bhi send kar sakte hain!"
+        ),
+        reply_markup=cancel_markup
+    )
+
 async def start_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
     user_id = update.effective_user.id
