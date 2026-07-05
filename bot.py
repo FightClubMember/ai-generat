@@ -48,7 +48,8 @@ def get_global_config():
     default_config = {
         "channels": ["@ai_receipt_channel"],
         "invite_links": ["https://t.me/ai_receipt_channel"],
-        "cooling_period": 30
+        "cooling_period": 30,
+        "referral_reward": 5   # Default 5 bills per successful refer
     }
     save_global_config(default_config)
     return default_config
@@ -63,9 +64,8 @@ def save_global_config(config):
 
 # ─── User Settings ───
 DEFAULT_SETTINGS = {
-    "credits": 3,              # Users get 3 free bills initially
-    "joined_channel": False,   # Tracks if they joined and claimed +50 reward
-    "last_claim_date": "",     # Tracks daily bonus claims (YYYY-MM-DD)
+    "credits": 0,              # Users start with 0 bills initially
+    "joined_channel": False,   # Set to True once they join channels and claim 3 free bills
     "last_gen_time": 0,        # Cooldown check
     "referred_by": "",         # Referrer ID
     "referral_rewarded": False # Prevent double rewarding
@@ -162,14 +162,14 @@ async def enforce_membership_and_credits(chat_id, context, settings, consume_cre
     is_member, blocked_channel = await check_channel_memberships(context.bot, chat_id)
     
     if not is_member:
-        # User left a channel! Deduct reward credits
+        # User left a channel! Deduct 3 free bills join reward
         if settings.get("joined_channel", False):
             settings["joined_channel"] = False
-            settings["credits"] = max(0, settings.get("credits", 3) - 50)
+            settings["credits"] = max(0, settings.get("credits", 0) - 3)
             save_user_settings(chat_id, settings)
             await context.bot.send_message(
                 chat_id=chat_id,
-                text="⚠️ **Warning**: You left one of our required channels! 50 reward credits have been deducted."
+                text="⚠️ **Warning**: You left one of our required channels! 3 free bills have been deducted from your balance."
             )
             
         # Display join prompt
@@ -178,14 +178,14 @@ async def enforce_membership_and_credits(chat_id, context, settings, consume_cre
             link = invite_links[i] if i < len(invite_links) else f"https://t.me/{channel.replace('@', '')}"
             keyboard.append([InlineKeyboardButton(f"📢 Join Channel {i+1}", url=link)])
             
-        keyboard.append([InlineKeyboardButton("🔄 Verify Memberships & Claim +50 Credits", callback_data="btn_verify_join")])
+        keyboard.append([InlineKeyboardButton("🔄 Verify Memberships & Unlock 3 Bills", callback_data="btn_verify_join")])
         
         await context.bot.send_message(
             chat_id=chat_id,
             text=(
                 f"⚠️ **Access Restricted!**\n\n"
                 f"To use the bot, you must join all required channels first!\n\n"
-                f"Join them and click verify to unlock **50 free credits**!"
+                f"Join them and click verify to unlock **3 free bills**!"
             ),
             reply_markup=InlineKeyboardMarkup(keyboard),
             parse_mode="Markdown"
@@ -195,7 +195,7 @@ async def enforce_membership_and_credits(chat_id, context, settings, consume_cre
     # User is in all channels. Reward if not marked.
     if not settings.get("joined_channel", False):
         settings["joined_channel"] = True
-        settings["credits"] = settings.get("credits", 3) + 50
+        settings["credits"] = settings.get("credits", 0) + 3  # Join channel awards exactly 3 bills
         save_user_settings(chat_id, settings)
         
         # Handle referral rewards
@@ -204,21 +204,23 @@ async def enforce_membership_and_credits(chat_id, context, settings, consume_cre
             settings["referral_rewarded"] = True
             save_user_settings(chat_id, settings)
             
+            # Award config amount to referrer
+            referral_reward = config.get("referral_reward", 5)
             ref_settings = get_user_settings(referred_by)
-            ref_settings["credits"] = ref_settings.get("credits", 3) + 5
+            ref_settings["credits"] = ref_settings.get("credits", 0) + referral_reward
             save_user_settings(referred_by, ref_settings)
             
             try:
                 await context.bot.send_message(
                     chat_id=referred_by,
-                    text="🎉 **Referral Success!**\n\nSomeone joined using your link! You earned **+5 free bills**."
+                    text=f"🎉 **Referral Success!**\n\nSomeone joined using your link! You earned **+{referral_reward} free bills**."
                 )
             except Exception:
                 pass
                 
         await context.bot.send_message(
             chat_id=chat_id,
-            text="🎉 **Thank you for joining our channels!**\nAdded **+50 free credits** to your balance."
+            text="🎉 **Thank you for joining our channels!**\nAdded **3 free bills** to your balance."
         )
 
     # 2. Check Cooldown (Only when consuming credits for generation)
@@ -236,17 +238,17 @@ async def enforce_membership_and_credits(chat_id, context, settings, consume_cre
             return False
 
     # 3. Check Credit Balance
-    credits = settings.get("credits", 3)
+    credits = settings.get("credits", 0)
     if consume_credit:
         if credits < 1:
             ref_link = f"https://t.me/{(await context.bot.get_me()).username}?start=ref_{chat_id}"
             await context.bot.send_message(
                 chat_id=chat_id,
                 text=(
-                    f"❌ **Out of Credits!**\n\n"
+                    f"❌ **Out of Bills!**\n\n"
                     f"You have used all your free bills.\n\n"
-                    f"🔗 **Refer & Earn +5 bills!**\n"
-                    f"Share your referral link with friends to get credits:\n"
+                    f"🔗 **Refer & Earn!**\n"
+                    f"Share your referral link with friends to get bills:\n"
                     f"`{ref_link}`"
                 ),
                 parse_mode="Markdown"
@@ -269,7 +271,7 @@ async def render_and_send_receipt(chat_id, context, settings):
     img.save(buf, format="PNG", optimize=True)
     buf.seek(0)
     
-    credits = settings.get("credits", 3)
+    credits = settings.get("credits", 0)
     caption = f"🧾 Here is your restaurant bill!"
     if chat_id != ADMIN_ID:
         caption += f"\n💰 Remaining Balance: `{credits} bills`"
@@ -318,9 +320,6 @@ def make_main_keyboard(chat_id):
         else:
             keyboard.append([InlineKeyboardButton("▶️ Start Auto-Stream", callback_data="btn_start_stream")])
             
-    # 3. Bonus Row
-    keyboard.append([InlineKeyboardButton("🎁 Daily Bonus (+5)", callback_data="btn_claim_daily")])
-    
     return InlineKeyboardMarkup(keyboard)
 
 # ─── Command Handlers ───
@@ -347,7 +346,7 @@ async def start_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await enforce_membership_and_credits(chat_id, context, settings, consume_credit=False)
             return
 
-    credits = settings.get("credits", 3)
+    credits = settings.get("credits", 0)
     config = get_global_config()
     cooldown = config.get("cooling_period", 30)
     ref_link = f"https://t.me/{(await context.bot.get_me()).username}?start=ref_{chat_id}"
@@ -355,10 +354,10 @@ async def start_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     welcome_text = (
         f"👑 **Royal Chinese Garden Bill Generator** 🧾\n\n"
         f"Generate authentic restaurant bills instantly.\n\n"
-        f"💰 **Available Bills**: `{credits} free bills`\n"
+        f"💰 **Available Bills**: `{credits} bills`\n"
         f"⏱ **Cooling Period**: `{cooldown}s`\n\n"
         f"🔗 **Refer & Earn**:\n"
-        f"Share your referral link to earn **+5 bills** per success!\n"
+        f"Share your referral link to earn **+{config.get('referral_reward', 5)} bills** per success!\n"
         f"`{ref_link}`"
     )
     
@@ -378,10 +377,12 @@ async def admin_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     channels = config.get("channels", ["@ai_receipt_channel"])
     invite_links = config.get("invite_links", ["https://t.me/ai_receipt_channel"])
     cooldown = config.get("cooling_period", 30)
+    referral_reward = config.get("referral_reward", 5)
     
     text = (
         "👑 **Admin Control Panel**\n\n"
         f"• **Cooling Period**: `{cooldown}s`\n"
+        f"• **Referral Reward**: `{referral_reward} bills`\n"
         f"• **Required Channels**:\n"
     )
     for i, ch in enumerate(channels):
@@ -392,6 +393,7 @@ async def admin_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "\n⚡ **Admin Credit Giving Commands**:\n"
         "• `/give [user_id] [amount]` - Add bills to a user\n"
         "• `/giveall [amount]` - Add bills to all active users\n"
+        "• `/setrefer [amount]` - Set referral reward amount\n"
     )
         
     keyboard = [
@@ -424,7 +426,7 @@ async def give_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         amount = int(context.args[1])
         
         target_settings = get_user_settings(target_id)
-        target_settings["credits"] = target_settings.get("credits", 3) + amount
+        target_settings["credits"] = target_settings.get("credits", 0) + amount
         save_user_settings(target_id, target_settings)
         
         await update.message.reply_text(f"✅ Successfully gave **{amount} bills** to user `{target_id}`.", parse_mode="Markdown")
@@ -464,12 +466,33 @@ async def giveall_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     if t_id == "global":
                         continue
                     t_settings = get_user_settings(t_id)
-                    t_settings["credits"] = t_settings.get("credits", 3) + amount
+                    t_settings["credits"] = t_settings.get("credits", 0) + amount
                     save_user_settings(t_id, t_settings)
                     count += 1
                     
         await update.message.reply_text(f"✅ Successfully gave **{amount} bills** to all **{count} active users**.", parse_mode="Markdown")
         
+    except ValueError:
+        await update.message.reply_text("❌ Amount must be an integer.")
+    except Exception as e:
+        await update.message.reply_text(f"❌ Error: {e}")
+
+async def setrefer_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    if user_id != ADMIN_ID:
+        return
+        
+    if len(context.args) < 1:
+        await update.message.reply_text("❌ Usage: `/setrefer [amount]`", parse_mode="Markdown")
+        return
+        
+    try:
+        amount = int(context.args[0])
+        config = get_global_config()
+        config["referral_reward"] = amount
+        save_global_config(config)
+        
+        await update.message.reply_text(f"✅ Referral reward updated to **{amount} bills**.", parse_mode="Markdown")
     except ValueError:
         await update.message.reply_text("❌ Amount must be an integer.")
     except Exception as e:
@@ -550,7 +573,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
     # --- Standard User Button Actions ---
     elif data == "btn_menu_main":
-        credits = settings.get("credits", 3)
+        credits = settings.get("credits", 0)
         config = get_global_config()
         cooldown = config.get("cooling_period", 30)
         ref_link = f"https://t.me/{(await context.bot.get_me()).username}?start=ref_{chat_id}"
@@ -558,7 +581,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text(
             text=(
                 f"👑 **Royal Chinese Garden Bill Generator** 🧾\n\n"
-                f"💰 **Available Bills**: `{credits} free bills`\n"
+                f"💰 **Available Bills**: `{credits} bills`\n"
                 f"⏱ **Cooling Period**: `{cooldown}s`\n\n"
                 f"🔗 **Referral Link**:\n"
                 f"`{ref_link}`"
@@ -579,7 +602,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.message.reply_text(f"❌ Error generating receipt: {e}")
             
         await query.message.reply_text(
-            text=f"🧾 Menu controls (Balance: `{settings.get('credits', 3)} bills`):",
+            text=f"🧾 Menu controls (Balance: `{settings.get('credits', 0)} bills`):",
             reply_markup=make_main_keyboard(chat_id),
             parse_mode="Markdown"
         )
@@ -589,7 +612,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if is_member:
             if not settings.get("joined_channel", False):
                 settings["joined_channel"] = True
-                settings["credits"] = settings.get("credits", 3) + 50
+                settings["credits"] = settings.get("credits", 0) + 3  # Join channel awards exactly 3 bills
                 save_user_settings(chat_id, settings)
                 
                 # Award referrer
@@ -598,18 +621,20 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     settings["referral_rewarded"] = True
                     save_user_settings(chat_id, settings)
                     
+                    config = get_global_config()
+                    referral_reward = config.get("referral_reward", 5)
                     ref_settings = get_user_settings(referred_by)
-                    ref_settings["credits"] = ref_settings.get("credits", 3) + 5
+                    ref_settings["credits"] = ref_settings.get("credits", 0) + referral_reward
                     save_user_settings(referred_by, ref_settings)
                     try:
                         await context.bot.send_message(
                             chat_id=referred_by,
-                            text="🎉 **Referral Success!**\n\nSomeone joined using your link! You earned **+5 free bills**."
+                            text=f"🎉 **Referral Success!**\n\nSomeone joined using your link! You earned **+{referral_reward} free bills**."
                         )
                     except Exception:
                         pass
                 
-                success_text = "🎉 **Membership Verified!**\n\nAdded **+50 free credits** to your balance."
+                success_text = "🎉 **Membership Verified!**\n\nAdded **3 free bills** to your balance."
             else:
                 success_text = "🎉 **Membership Confirmed!**\n\nYou are still subscribed to required channels."
                 
@@ -627,7 +652,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             for i, channel in enumerate(channels):
                 link = invite_links[i] if i < len(invite_links) else f"https://t.me/{channel.replace('@', '')}"
                 keyboard.append([InlineKeyboardButton(f"📢 Join Channel {i+1}", url=link)])
-            keyboard.append([InlineKeyboardButton("🔄 Verify Memberships & Claim +50 Credits", callback_data="btn_verify_join")])
+            keyboard.append([InlineKeyboardButton("🔄 Verify Memberships & Unlock 3 Bills", callback_data="btn_verify_join")])
             
             await query.edit_message_text(
                 text=(
@@ -635,31 +660,6 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     f"Please make sure you have joined all required channels before verifying."
                 ),
                 reply_markup=InlineKeyboardMarkup(keyboard),
-                parse_mode="Markdown"
-            )
-            
-    elif data == "btn_claim_daily":
-        today_str = datetime.now().strftime("%Y-%m-%d")
-        last_claim = settings.get("last_claim_date", "")
-        
-        if last_claim == today_str:
-            await query.edit_message_text(
-                text="❌ **Already Claimed!**\n\nYou have already claimed your daily bonus today. Come back tomorrow!",
-                reply_markup=make_main_keyboard(chat_id),
-                parse_mode="Markdown"
-            )
-        else:
-            settings["last_claim_date"] = today_str
-            settings["credits"] = settings.get("credits", 3) + 5
-            save_user_settings(chat_id, settings)
-            
-            await query.edit_message_text(
-                text=(
-                    f"🎉 **Daily Bonus Claimed!**\n\n"
-                    f"Added **+5 bills** to your balance.\n"
-                    f"💰 Total Balance: `{settings['credits']} bills`"
-                ),
-                reply_markup=make_main_keyboard(chat_id),
                 parse_mode="Markdown"
             )
 
@@ -755,6 +755,7 @@ def main():
     app.add_handler(CommandHandler("admin", admin_cmd))
     app.add_handler(CommandHandler("give", give_cmd))
     app.add_handler(CommandHandler("giveall", giveall_cmd))
+    app.add_handler(CommandHandler("setrefer", setrefer_cmd))
     app.add_handler(CallbackQueryHandler(handle_callback))
     app.add_handler(MessageHandler(filters.TEXT | filters.PHOTO, handle_text_message))
     

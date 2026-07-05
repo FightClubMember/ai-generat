@@ -136,8 +136,8 @@ def generate_striped_background(width, height):
 
 # ─── Core Receipt Canvas Generator ───
 
-def draw_receipt_canvas(data, bg_color, text_color):
-    """Renders the receipt onto a canvas following the reference image structure exactly (42 chars wide)."""
+def draw_receipt_canvas(data, text_color):
+    """Renders the receipt directly onto the striped canvas, full size, edge-to-edge."""
     width = 380
     lines = [] # Array of tuples: (text_line, is_bold, is_large)
     
@@ -230,7 +230,7 @@ def draw_receipt_canvas(data, bg_color, text_color):
     grand_total = rounded_total
         
     # Grand Total row (center-aligned bold)
-    grand_str = f"Grand Total:  {grand_total:.2f}"
+    grand_str = f"Grand Total:  ₹ {grand_total:.2f}"
     lines.append((center_line(grand_str), True, False))
     
     lines.append(("------------------------------------------", False, False))
@@ -251,8 +251,8 @@ def draw_receipt_canvas(data, bg_color, text_color):
     for _, _, is_large in lines:
         total_height += 23 if is_large else line_h
         
-    # Create image
-    canvas = Image.new("RGB", (width, total_height), bg_color)
+    # Create the canvas using the striped background directly
+    canvas = generate_striped_background(width, total_height)
     draw = ImageDraw.Draw(canvas)
     
     y = padding
@@ -269,56 +269,17 @@ def draw_receipt_canvas(data, bg_color, text_color):
         
     return canvas
 
-# ─── Tabletop Overlay with Drop Shadow ───
-
-def apply_tabletop_mode(receipt_img, bg_color, text_color):
-    """Places the receipt flat onto the vertical striped background with a clean, soft drop shadow."""
-    rw, rh = receipt_img.size
-    bg_w, bg_h = 600, max(rh + 160, 720)
-    
-    # Generate the vertical striped background
-    bg = generate_striped_background(bg_w, bg_h)
-    
-    # Calculate centering coordinates
-    rx = (bg_w - rw) // 2
-    ry = (bg_h - rh) // 2
-    
-    # Create a soft drop shadow (perfect rectangle)
-    shadow_base = Image.new("RGBA", (bg_w, bg_h), (0, 0, 0, 0))
-    shadow_draw = ImageDraw.Draw(shadow_base)
-    shadow_offset_x = 6
-    shadow_offset_y = 8
-    shadow_rect = [rx + shadow_offset_x, ry + shadow_offset_y, rx + rw + shadow_offset_x, ry + rh + shadow_offset_y]
-    shadow_draw.rectangle(shadow_rect, fill=(10, 10, 12, 100)) # Alpha 100
-    
-    # Blur the shadow for soft look
-    shadow_soft = shadow_base.filter(ImageFilter.GaussianBlur(10))
-    
-    # Paste shadow onto background
-    bg_rgba = bg.convert("RGBA")
-    bg_rgba = Image.alpha_composite(bg_rgba, shadow_soft)
-    
-    # Paste the clean flat receipt onto the background
-    receipt_rgba = receipt_img.convert("RGBA")
-    bg_rgba.paste(receipt_rgba, (rx, ry), receipt_rgba)
-    
-    return bg_rgba.convert("RGB")
-
 # ─── Main Generation API ───
 
 def generate_receipt_image(*args, **kwargs):
     """
     Main API to generate a restaurant bill image matching the reference image.
-    Always uses the Tabletop mode with the striped background.
+    Outputs the receipt in full edge-to-edge with the striped texture.
     """
-    bg_color = (245, 243, 237)  # Warm paper off-white
     text_color = (15, 15, 15)   # Charcoal print ink
     
     # 1. Generate receipt data
     data = get_receipt_data()
     
-    # 2. Render text onto canvas
-    img = draw_receipt_canvas(data, bg_color, text_color)
-    
-    # 3. Place flat onto striped tabletop background with drop-shadow
-    return apply_tabletop_mode(img, bg_color, text_color)
+    # 2. Render text directly on the striped canvas and return
+    return draw_receipt_canvas(data, text_color)
