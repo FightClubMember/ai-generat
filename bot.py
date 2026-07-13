@@ -5,6 +5,7 @@ import time
 import random
 import asyncio
 import threading
+import urllib.request
 from datetime import datetime
 from http.server import SimpleHTTPRequestHandler, HTTPServer
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup
@@ -28,6 +29,7 @@ if not TOKEN:
         TOKEN = "YOUR_BOT_TOKEN_HERE"
 
 ADMIN_ID = 7837935671
+HF_API_TOKEN = os.getenv("HF_API_TOKEN", "")
 
 # Global state
 admin_states = {}  # user_id -> string (awaiting input state)
@@ -71,7 +73,7 @@ DEFAULT_SETTINGS = {
     "referred_by": "",         # Referrer ID
     "referral_rewarded": False, # Prevent double rewarding
     "referrals_count": 0,      # Total successful referrals
-    "last_spin_time": 0        # Gamification: spin wheel daily check
+    "last_spin_time": 0        # Gamification daily spin check
 }
 
 def get_user_settings(chat_id):
@@ -123,6 +125,143 @@ def start_health_server():
     print(f"Health check server listening on port {port}...")
     server.serve_forever()
 
+# ─── AI Writer API helper (Hugging Face serverless model) ───
+
+async def generate_ai_post(draft_text):
+    """Queries Qwen2.5-7B-Instruct to format and optimize post content."""
+    if not HF_API_TOKEN:
+        return "⚠️ **Hugging Face API Token missing!**\n\nAI Writer use karne ke liye admin ko Render dashboard me `HF_API_TOKEN` environment variable set karna hoga."
+        
+    url = "https://api-inference.huggingface.co/models/Qwen/Qwen2.5-7B-Instruct"
+    headers = {
+        "Authorization": f"Bearer {HF_API_TOKEN}",
+        "Content-Type": "application/json"
+    }
+    
+    prompt = (
+        f"<|im_start|>system\n"
+        f"You are a professional social media content writer and copywriter. Optimize the user's rough draft post. "
+        f"Format it with elegant spacing, use bullet points if helpful, make the vocabulary engaging, and add popular relevant hashtags. "
+        f"Keep the post output clean and ready to publish. You can use English or Hinglish depending on the draft language.<|im_end|>\n"
+        f"<|im_start|>user\n"
+        f"Rough Draft:\n{draft_text}<|im_end|>\n"
+        f"<|im_start|>assistant\n"
+    )
+    
+    data = {
+        "inputs": prompt,
+        "parameters": {
+            "max_new_tokens": 400,
+            "temperature": 0.7
+        }
+    }
+    
+    json_data = json.dumps(data).encode("utf-8")
+    
+    for attempt in range(3):
+        try:
+            def make_request():
+                req = urllib.request.Request(url, data=json_data, headers=headers, method="POST")
+                with urllib.request.urlopen(req, timeout=45) as response:
+                    return json.loads(response.read().decode("utf-8"))
+            
+            res = await asyncio.to_thread(make_request)
+            if isinstance(res, list) and len(res) > 0:
+                gen_text = res[0].get("generated_text", "")
+                if prompt in gen_text:
+                    gen_text = gen_text.replace(prompt, "")
+                return gen_text.strip()
+            elif isinstance(res, dict) and "error" in res:
+                err_msg = res["error"]
+                if "loading" in err_msg or "currently loading" in err_msg:
+                    est_time = res.get("estimated_time", 10.0)
+                    print(f"AI Writer Model loading... waiting {est_time}s")
+                    await asyncio.sleep(min(est_time, 10.0))
+                    continue
+                return f"AI Writer Error: {err_msg}"
+            return str(res)
+        except Exception as e:
+            print(f"AI Writer API error (attempt {attempt+1}): {e}")
+            await asyncio.sleep(3)
+            
+    return "AI Writer API timed out / failed."
+
+# ─── Post Scheduler Background Tasks ───
+
+async def run_scheduled_broadcast(bot, from_chat_id, message_id):
+    """Clones a scheduled message and sends it to all active bot users."""
+    os.makedirs("styles", exist_ok=True)
+    users = []
+    for filename in os.listdir("styles"):
+        if filename.endswith("_settings.json"):
+            parts = filename.split("_")
+            if len(parts) >= 2:
+                target_id = parts[0]
+                if target_id != "global":
+                    users.append(target_id)
+                    
+    print(f"Executing scheduled post broadcast to {len(users)} users...")
+    for target_id in users:
+        try:
+            await bot.copy_message(
+                chat_id=target_id,
+                from_chat_id=from_chat_id,
+                message_id=message_id
+            )
+            # Avoid API limits
+            await asyncio.sleep(0.05)
+        except Exception as e:
+            print(f"Failed to copy scheduled message to {target_id}: {e}")
+
+async def check_and_send_scheduled_posts(app):
+    """Periodically scans scheduled_posts.json for due posts and fires them."""
+    posts_path = "styles/scheduled_posts.json"
+    if not os.path.exists(posts_path):
+        return
+        
+    try:
+        with open(posts_path, "r") as f:
+            posts = json.load(f)
+    except Exception:
+        return
+        
+    now = time.time()
+    updated_posts = []
+    due_posts = []
+    
+    for post in posts:
+        if post.get("timestamp", 0) <= now:
+            due_posts.append(post)
+        else:
+            updated_posts.append(post)
+            
+    if not due_posts:
+        return
+        
+    # Save the updated list first to prevent double-firing
+    try:
+        with open(posts_path, "w") as f:
+            json.dump(updated_posts, f)
+    except Exception as e:
+        print(f"Failed to save scheduled posts db: {e}")
+        return
+        
+    # Execute due posts
+    for post in due_posts:
+        from_chat = post["from_chat_id"]
+        msg_id = post["message_id"]
+        asyncio.create_task(run_scheduled_broadcast(app.bot, from_chat, msg_id))
+
+async def scheduler_loop(app):
+    """Background loop that calls checker every 60 seconds."""
+    await asyncio.sleep(10)  # wait for bot startup
+    while True:
+        try:
+            await check_and_send_scheduled_posts(app)
+        except Exception as e:
+            print(f"Error in scheduler loop: {e}")
+        await asyncio.sleep(60)
+
 # ─── Access Control: Channel check, Cooldown, and Referral System ───
 
 async def check_channel_memberships(bot, user_id):
@@ -153,7 +292,6 @@ async def enforce_membership_and_credits(chat_id, context, settings, consume_cre
     Checks channel memberships, cooldowns, and credit balance.
     Admin gets complete bypass.
     """
-    # 0. Admin Bypass
     if chat_id == ADMIN_ID:
         return True
 
@@ -328,13 +466,16 @@ def make_main_keyboard(chat_id):
     # 2. Gamified Spin & Refer Row
     keyboard.append(["🎡 Lucky Spin", "👥 Refer & Earn"])
     
-    # 3. Stats & Help Row
-    row3 = ["💰 My Balance", "❓ Support & Help"]
-    if chat_id == ADMIN_ID:
-        row3.insert(0, "👑 Admin Panel")
-    keyboard.append(row3)
+    # 3. Stats & AI Writer
+    keyboard.append(["💰 My Balance", "📝 AI Writer"])
     
-    # 4. Admin stream controls
+    # 4. Support & Help Panel
+    row4 = ["❓ Support & Help"]
+    if chat_id == ADMIN_ID:
+        row4.insert(0, "👑 Admin Panel")
+    keyboard.append(row4)
+    
+    # 5. Admin stream controls
     if chat_id == ADMIN_ID:
         is_streaming = chat_id in active_tasks
         if is_streaming:
@@ -343,67 +484,6 @@ def make_main_keyboard(chat_id):
             keyboard.append(["▶️ Start Auto-Stream"])
             
     return ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
-
-# ─── Broadcast Execution (Media/Copy Cloner) ───
-
-async def execute_broadcast(message_to_copy, context):
-    """Broadcasts a exact copy of ANY message (text, media, buttons) to all active users."""
-    admin_id = message_to_copy.chat.id
-    status_message = await context.bot.send_message(
-        chat_id=admin_id,
-        text="📢 **Broadcast shuru ho raha hai...**\nSabhhi active users ko message send kiya ja raha hai."
-    )
-    
-    count = 0
-    failed = 0
-    
-    os.makedirs("styles", exist_ok=True)
-    users = []
-    for filename in os.listdir("styles"):
-        if filename.endswith("_settings.json"):
-            parts = filename.split("_")
-            if len(parts) >= 2:
-                target_id = parts[0]
-                if target_id != "global":
-                    users.append(target_id)
-                    
-    total = len(users)
-    
-    for i, target_id in enumerate(users):
-        try:
-            # Clones formatting, captions, inline buttons, photos, videos, etc.
-            await context.bot.copy_message(
-                chat_id=target_id,
-                from_chat_id=admin_id,
-                message_id=message_to_copy.message_id
-            )
-            count += 1
-        except Exception as e:
-            print(f"Failed to copy broadcast to {target_id}: {e}")
-            failed += 1
-            
-        # Update progress indicator every 10 users
-        if (i + 1) % 10 == 0 or i + 1 == total:
-            try:
-                await status_message.edit_text(
-                    f"📢 **Broadcast Progress Update**:\n\n"
-                    f"• Bheja gaya: `{i+1} / {total}` users ko\n"
-                    f"• Success: `{count}`\n"
-                    f"• Failed/Blocked: `{failed}`"
-                )
-            except Exception:
-                pass
-            # Avoid API flood
-            await asyncio.sleep(0.5)
-            
-    await context.bot.send_message(
-        chat_id=admin_id,
-        text=(
-            f"✅ **Broadcast Safaltapurvak Poora Hua!**\n\n"
-            f"• Safal send: `{count}` users ko\n"
-            f"• Failed/Blocked: `{failed}` users"
-        )
-    )
 
 # ─── Command Handlers ───
 
@@ -482,7 +562,7 @@ async def start_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     welcome_text = (
         f"👋 **Namaste! Swagat hai aapka Indian Cafes & Hotels Bill Generator bot me!** 🧾\n\n"
         f"Yahan aap original-looking, authentic bills generate kar sakte hain.\n"
-        f"Daily free bills ke liye aap `🎡 Lucky Spin` wheel aazma sakte hain!\n\n"
+        f"Aap `🎡 Lucky Spin` se daily free bills win kar sakte hain, aur `📝 AI Writer` se professional posts design kar sakte hain!\n\n"
         f"💰 **Aapka Balance**: `{credits} bills`\n"
         f"⏱ **Cooling Period**: `{cooldown} seconds`\n\n"
         f"📢 **Note**: Naye users ko channel join karne par **3 free bills** milte hain.\n"
@@ -528,10 +608,13 @@ async def admin_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
         [
             InlineKeyboardButton("⏱ Edit Cooldown", callback_data="adm_edit_cooldown"),
-            InlineKeyboardButton("📢 Broadcast Message", callback_data="adm_broadcast")
+            InlineKeyboardButton("📢 Broadcast Now", callback_data="adm_broadcast")
         ],
         [
-            InlineKeyboardButton("➕ Add Channel", callback_data="adm_add_channel"),
+            InlineKeyboardButton("📅 Schedule Post", callback_data="adm_schedule_post"),
+            InlineKeyboardButton("➕ Add Channel", callback_data="adm_add_channel")
+        ],
+        [
             InlineKeyboardButton("➖ Remove Channel", callback_data="adm_remove_channel")
         ]
     ]
@@ -662,7 +745,6 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         cooldown = 86400  # 24 Hours
         elapsed = time.time() - last_spin
         
-        # Enforce Spin Cooldown
         if elapsed < cooldown and user_id != ADMIN_ID:
             remaining = int(cooldown - elapsed)
             hours = remaining // 3600
@@ -672,7 +754,6 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
             return
             
-        # Trigger visual spinning animations
         animations = [
             "🌀 Spinning... [ 1 Bill ] 🎰",
             "🌀 Spinning... [ 10 Bills ] 🎰",
@@ -687,8 +768,6 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             except Exception:
                 pass
                 
-        # Random Reward odds logic:
-        # 1 Bill (30%), 2 Bills (30%), 3 Bills (20%), 5 Bills (15%), 10 Bills (5%)
         reward = random.choices([1, 2, 3, 5, 10], weights=[30, 30, 20, 15, 5])[0]
         
         settings["credits"] = settings.get("credits", 0) + reward
@@ -749,6 +828,17 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 reply_markup=cancel_markup
             )
             
+        elif data == "adm_schedule_post":
+            admin_states[user_id] = "awaiting_sched_msg"
+            await query.edit_message_text(
+                text=(
+                    "📅 **Awaiting Schedule Message**\n\n"
+                    "Sabhi users ko schedule karne ke liye message send ya forward karein.\n"
+                    "Aap text, photo, video, button kuch bhi schedule kar sakte hain!"
+                ),
+                reply_markup=cancel_markup
+            )
+            
     # --- Verify Channel Membership & Grant 3 Bills ---
     elif data == "btn_verify_join":
         is_member, _ = await check_channel_memberships(context.bot, chat_id)
@@ -787,7 +877,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             # Send main controls using reply keyboard
             await context.bot.send_message(
                 chat_id=chat_id,
-                text="Niche diye gaye keyboard se bill generate karein:",
+                text="Niche diye gaye keyboard se features use karein:",
                 reply_markup=make_main_keyboard(chat_id)
             )
         else:
@@ -814,15 +904,46 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
     chat_id = update.effective_chat.id
     user_id = update.effective_user.id
     
-    # Check if admin is currently in broadcast state (supports media/photo uploads too)
+    # 1. Admin: Broadcast capture
     if user_id == ADMIN_ID and admin_states.get(user_id) == "awaiting_broadcast":
         admin_states.pop(user_id, None)
         asyncio.create_task(execute_broadcast(update.message, context))
         return
 
+    # 2. Admin: Schedule message capture
+    if user_id == ADMIN_ID and admin_states.get(user_id) == "awaiting_sched_msg":
+        msg_id = update.message.message_id
+        admin_states[user_id] = f"awaiting_sched_time:{msg_id}"
+        
+        cancel_markup = InlineKeyboardMarkup([[InlineKeyboardButton("❌ Cancel Karein", callback_data="btn_cancel_admin")]])
+        await update.message.reply_text(
+            text=(
+                "⏰ **Schedule Time Set Karein**\n\n"
+                "Kripya kis waqt post send karna hai wo time enter karein.\n"
+                "Format: `YYYY-MM-DD HH:MM` (24-hour format)\n"
+                "Example: `2026-07-14 18:30`"
+            ),
+            reply_markup=cancel_markup
+        )
+        return
+
+    # 3. AI Writer input capture
+    if user_id in admin_states and admin_states[user_id] == "awaiting_ai_write":
+        admin_states.pop(user_id, None)
+        status_msg = await update.message.reply_text("✍️ **AI formatting post...** Kripya thoda wait karein.")
+        
+        result_post = await generate_ai_post(update.message.text)
+        await status_msg.delete()
+        
+        await update.message.reply_text(
+            text=f"📝 **AI Optimized Post**:\n\n{result_post}",
+            reply_markup=make_main_keyboard(chat_id)
+        )
+        return
+
     text = update.message.text.strip() if update.message.text else ""
     
-    # 1. Admin config inputs
+    # 4. Admin config text inputs
     if user_id == ADMIN_ID and user_id in admin_states:
         state = admin_states[user_id]
         config = get_global_config()
@@ -886,9 +1007,53 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
                 await update.message.reply_text("❌ Index value ek valid number hona chahiye.")
             admin_states.pop(user_id, None)
             
+        elif state.startswith("awaiting_sched_time:"):
+            msg_id = int(state.split(":")[1])
+            try:
+                # Parse schedule date-time
+                sched_dt = datetime.strptime(text, "%Y-%m-%d %H:%M")
+                timestamp = sched_dt.timestamp()
+                
+                if timestamp <= time.time():
+                    await update.message.reply_text("❌ Time past me nahi ho sakta! Naya time enter karein:")
+                    return
+                    
+                # Save to database
+                posts_path = "styles/scheduled_posts.json"
+                posts = []
+                if os.path.exists(posts_path):
+                    try:
+                        with open(posts_path, "r") as f:
+                            posts = json.load(f)
+                    except Exception:
+                        pass
+                        
+                posts.append({
+                    "from_chat_id": chat_id,
+                    "message_id": msg_id,
+                    "timestamp": timestamp,
+                    "sent": False
+                })
+                
+                with open(posts_path, "w") as f:
+                    json.dump(posts, f)
+                    
+                admin_states.pop(user_id, None)
+                await update.message.reply_text(
+                    f"✅ **Post schedule ho gaya hai!**\n\n"
+                    f"Message ID: `{msg_id}`\n"
+                    f"Date-Time: `{sched_dt.strftime('%d/%m/%Y %H:%M')}` ko send kiya jayega.",
+                    parse_mode="Markdown"
+                )
+            except ValueError:
+                await update.message.reply_text("❌ Galat format. Kripya `YYYY-MM-DD HH:MM` format me enter karein:")
+            except Exception as e:
+                await update.message.reply_text(f"❌ Error occurred: {e}")
+                admin_states.pop(user_id, None)
+                
         return
 
-    # 2. Reply Keyboard button actions
+    # 5. Reply Keyboard button actions
     if text == "⚡ Generate Bill":
         settings = get_user_settings(chat_id)
         allowed = await enforce_membership_and_credits(chat_id, context, settings, consume_credit=True)
@@ -910,8 +1075,6 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
         
     elif text == "🎡 Lucky Spin":
         settings = get_user_settings(chat_id)
-        
-        # Enforce join channels check
         allowed = await enforce_membership_and_credits(chat_id, context, settings, consume_credit=False)
         if not allowed:
             return
@@ -943,6 +1106,23 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
                     f"🔗 Tab tak aur bills earn karne ke liye apne dosto ko refer karein!"
                 )
             )
+        return
+
+    elif text == "📝 AI Writer":
+        settings = get_user_settings(chat_id)
+        allowed = await enforce_membership_and_credits(chat_id, context, settings, consume_credit=False)
+        if not allowed:
+            return
+            
+        admin_states[user_id] = "awaiting_ai_write"
+        await update.message.reply_text(
+            text=(
+                "📝 **AI Post Writer**\n\n"
+                "Apne post ka rough draft ya ideas yahan send karein.\n"
+                "AI use format karke ek attractive social media post bana dega!"
+            ),
+            reply_markup=make_main_keyboard(chat_id)
+        )
         return
 
     elif text == "👥 Refer & Earn":
@@ -992,7 +1172,8 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
             f"1. Sabhi required channels join karein.\n"
             f"2. Niche diye gaye `⚡ Generate Bill` button par click karein.\n"
             f"3. Instantly 3:4 aspect ratio ka authentic bill generate ho jayega.\n"
-            f"4. `🎡 Lucky Spin` option click karke aap daily free billing credits win kar sakte hain!"
+            f"4. `🎡 Lucky Spin` option click karke aap daily free billing credits win kar sakte hain!\n"
+            f"5. `📝 AI Writer` click karke social media posts optimize kar sakte hain."
         )
         await update.message.reply_text(
             text=help_text,
@@ -1046,6 +1227,11 @@ def main():
     health_thread.start()
     
     app = Application.builder().token(TOKEN).build()
+    
+    # Schedule background tasks post-init
+    async def post_init(application):
+        asyncio.create_task(scheduler_loop(application))
+    app.post_init = post_init
     
     # Register commands
     app.add_handler(CommandHandler("start", start_cmd))
