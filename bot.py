@@ -2,9 +2,9 @@ import os
 import io
 import json
 import time
+import random
 import asyncio
 import threading
-import urllib.request
 from datetime import datetime
 from http.server import SimpleHTTPRequestHandler, HTTPServer
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup
@@ -28,7 +28,6 @@ if not TOKEN:
         TOKEN = "YOUR_BOT_TOKEN_HERE"
 
 ADMIN_ID = 7837935671
-HF_API_TOKEN = os.getenv("HF_API_TOKEN", "")
 
 # Global state
 admin_states = {}  # user_id -> string (awaiting input state)
@@ -71,7 +70,8 @@ DEFAULT_SETTINGS = {
     "last_gen_time": 0,        # Cooldown check
     "referred_by": "",         # Referrer ID
     "referral_rewarded": False, # Prevent double rewarding
-    "referrals_count": 0       # Total successful referrals
+    "referrals_count": 0,      # Total successful referrals
+    "last_spin_time": 0        # Gamification: spin wheel daily check
 }
 
 def get_user_settings(chat_id):
@@ -122,103 +122,6 @@ def start_health_server():
     server = HTTPServer(("0.0.0.0", port), RenderHealthCheckHandler)
     print(f"Health check server listening on port {port}...")
     server.serve_forever()
-
-# ─── Hugging Face Inference API helpers (Voice Transcription & Summarization) ───
-
-async def transcribe_audio_hf(audio_bytes):
-    """Sends audio bytes directly to Hugging Face Whisper API."""
-    if not HF_API_TOKEN:
-        return "", "HF_API_TOKEN not configured"
-        
-    url = "https://api-inference.huggingface.co/models/openai/whisper-large-v3"
-    headers = {
-        "Authorization": f"Bearer {HF_API_TOKEN}",
-        "Content-Type": "audio/ogg"
-    }
-    
-    retries = 3
-    for attempt in range(retries):
-        try:
-            def make_request():
-                req = urllib.request.Request(url, data=audio_bytes, headers=headers, method="POST")
-                with urllib.request.urlopen(req, timeout=45) as response:
-                    return json.loads(response.read().decode("utf-8"))
-            
-            res = await asyncio.to_thread(make_request)
-            if isinstance(res, dict) and "error" in res:
-                err_msg = res["error"]
-                if "loading" in err_msg or "currently loading" in err_msg:
-                    est_time = res.get("estimated_time", 10.0)
-                    print(f"Whisper Model loading... waiting {est_time}s")
-                    await asyncio.sleep(min(est_time, 10.0))
-                    continue
-                return "", err_msg
-            return res.get("text", ""), None
-        except Exception as e:
-            print(f"Whisper API error (attempt {attempt+1}): {e}")
-            await asyncio.sleep(3)
-            
-    return "", "Transcription timed out / failed after retries."
-
-async def summarize_text_hf(text):
-    """Queries Qwen2.5-7B-Instruct to summarize text in premium Hinglish."""
-    if not HF_API_TOKEN:
-        return "HF_API_TOKEN configured nahi hai."
-        
-    url = "https://api-inference.huggingface.co/models/Qwen/Qwen2.5-7B-Instruct"
-    headers = {
-        "Authorization": f"Bearer {HF_API_TOKEN}",
-        "Content-Type": "application/json"
-    }
-    
-    # Prompt instructing Qwen to outline a clean bulleted summary in Hinglish
-    prompt = (
-        f"<|im_start|>system\n"
-        f"You are a helpful AI assistant. Summarize the user's transcribed voice text in natural Hinglish. "
-        f"Provide the summary in clear bullet points in Hinglish language. Keep it brief, simple, and very easy to understand.<|im_end|>\n"
-        f"<|im_start|>user\n"
-        f"Text to summarize:\n{text}<|im_end|>\n"
-        f"<|im_start|>assistant\n"
-    )
-    
-    data = {
-        "inputs": prompt,
-        "parameters": {
-            "max_new_tokens": 300,
-            "temperature": 0.7
-        }
-    }
-    
-    json_data = json.dumps(data).encode("utf-8")
-    
-    retries = 3
-    for attempt in range(retries):
-        try:
-            def make_request():
-                req = urllib.request.Request(url, data=json_data, headers=headers, method="POST")
-                with urllib.request.urlopen(req, timeout=45) as response:
-                    return json.loads(response.read().decode("utf-8"))
-            
-            res = await asyncio.to_thread(make_request)
-            if isinstance(res, list) and len(res) > 0:
-                gen_text = res[0].get("generated_text", "")
-                if prompt in gen_text:
-                    gen_text = gen_text.replace(prompt, "")
-                return gen_text.strip()
-            elif isinstance(res, dict) and "error" in res:
-                err_msg = res["error"]
-                if "loading" in err_msg or "currently loading" in err_msg:
-                    est_time = res.get("estimated_time", 10.0)
-                    print(f"Qwen Model loading... waiting {est_time}s")
-                    await asyncio.sleep(min(est_time, 10.0))
-                    continue
-                return f"Summary Error: {err_msg}"
-            return str(res)
-        except Exception as e:
-            print(f"Summarizer API error (attempt {attempt+1}): {e}")
-            await asyncio.sleep(3)
-            
-    return "Summarization failed."
 
 # ─── Access Control: Channel check, Cooldown, and Referral System ───
 
@@ -396,89 +299,6 @@ async def render_and_send_receipt(chat_id, context, settings):
         filename="bill.png"
     )
 
-# ─── Voice-Note Transcription & Summarization Handler ───
-
-async def handle_audio(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Downloads voice notes / audio files, queries Whisper and Qwen APIs, and returns text + summary."""
-    chat_id = update.effective_chat.id
-    user_id = update.effective_user.id
-    settings = get_user_settings(chat_id)
-    
-    # 1. Enforce channel membership (does not deduct credits yet)
-    allowed = await enforce_membership_and_credits(chat_id, context, settings, consume_credit=False)
-    if not allowed:
-        return
-        
-    is_voice = update.message.voice is not None
-    audio_obj = update.message.voice if is_voice else update.message.audio
-    
-    # 2. Enforce credit balance (costs 1 credit to process audio)
-    credits = settings.get("credits", 0)
-    if credits < 1 and user_id != ADMIN_ID:
-        ref_link = f"https://t.me/{(await context.bot.get_me()).username}?start=ref_{chat_id}"
-        await update.message.reply_text(
-            f"❌ **Bills khatam ho gaye hain!**\n\nVoice note process karne ke liye 1 bill lagta hai.\n"
-            f"Apne dosto ko refer karke free bills kamayein:\n"
-            f"`{ref_link}`",
-            parse_mode="Markdown"
-        )
-        return
-
-    # Check for API key
-    if not HF_API_TOKEN:
-        await update.message.reply_text(
-            "⚠️ **API Token Missing!**\n\nAdmin ne `HF_API_TOKEN` environment variable set nahi kiya hai. "
-            "Kripya admin ko token set karne ko kahein."
-        )
-        return
-
-    status_msg = await update.message.reply_text("🎙️ **Voice note mil gaya!**\nAudio ko text me convert kiya ja raha hai... Kripya thoda wait karein.")
-    
-    try:
-        # Download file
-        file = await audio_obj.get_file()
-        buf = io.BytesIO()
-        await file.download_to_memory(buf)
-        buf.seek(0)
-        audio_bytes = buf.read()
-        
-        # 3. Request Transcription
-        transcript, err = await transcribe_audio_hf(audio_bytes)
-        if err:
-            await status_msg.edit_text(f"❌ **Transcription Failed**: {err}")
-            return
-            
-        if not transcript.strip():
-            await status_msg.edit_text("❌ Audio me koi valid voice ya text detect nahi hua.")
-            return
-            
-        await status_msg.edit_text("✍️ **Transcription ho gaya!**\nAb AI se iski Hinglish summary banayi ja rahi hai...")
-        
-        # 4. Request Summarization
-        summary = await summarize_text_hf(transcript)
-        
-        # Deduct credit (except admin)
-        if user_id != ADMIN_ID:
-            settings["credits"] = credits - 1
-            save_user_settings(chat_id, settings)
-            
-        final_credits = settings.get("credits", 0)
-        
-        result_text = (
-            f"🎙️ **Transcription Text**:\n"
-            f"`{transcript}`\n\n"
-            f"📝 **AI Summary (Hinglish)**:\n"
-            f"{summary}\n\n"
-            f"💰 **Bacha hua Balance**: `{final_credits} bills`"
-        )
-        
-        await status_msg.delete()
-        await update.message.reply_text(text=result_text, parse_mode="Markdown")
-        
-    except Exception as e:
-        print(f"Error processing audio: {e}")
-        await status_msg.edit_text(f"❌ **Error occurred**: {e}")
-
 # ─── Admin Continuous Auto-Stream Task ───
 
 async def admin_stream_task(chat_id, context, settings):
@@ -505,11 +325,11 @@ def make_main_keyboard(chat_id):
     # 1. Main Action Row
     keyboard.append(["⚡ Generate Bill"])
     
-    # 2. Stats & Help Row
-    keyboard.append(["💰 My Balance", "👥 Refer & Earn"])
+    # 2. Gamified Spin & Refer Row
+    keyboard.append(["🎡 Lucky Spin", "👥 Refer & Earn"])
     
-    # 3. Support & Help
-    row3 = ["❓ Support & Help"]
+    # 3. Stats & Help Row
+    row3 = ["💰 My Balance", "❓ Support & Help"]
     if chat_id == ADMIN_ID:
         row3.insert(0, "👑 Admin Panel")
     keyboard.append(row3)
@@ -662,7 +482,7 @@ async def start_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     welcome_text = (
         f"👋 **Namaste! Swagat hai aapka Indian Cafes & Hotels Bill Generator bot me!** 🧾\n\n"
         f"Yahan aap original-looking, authentic bills generate kar sakte hain.\n"
-        f"Aap bot me **Voice Notes** (audio) send karke use AI se transcribe aur summarize bhi karwa sakte hain!\n\n"
+        f"Daily free bills ke liye aap `🎡 Lucky Spin` wheel aazma sakte hain!\n\n"
         f"💰 **Aapka Balance**: `{credits} bills`\n"
         f"⏱ **Cooling Period**: `{cooldown} seconds`\n\n"
         f"📢 **Note**: Naye users ko channel join karne par **3 free bills** milte hain.\n"
@@ -836,6 +656,55 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text("❌ Action cancel kar diya gaya hai.")
         return
 
+    # --- Gamification: Lucky Spin Wheel Action ---
+    elif data == "btn_spin_wheel":
+        last_spin = settings.get("last_spin_time", 0)
+        cooldown = 86400  # 24 Hours
+        elapsed = time.time() - last_spin
+        
+        # Enforce Spin Cooldown
+        if elapsed < cooldown and user_id != ADMIN_ID:
+            remaining = int(cooldown - elapsed)
+            hours = remaining // 3600
+            minutes = (remaining % 3600) // 60
+            await query.edit_message_text(
+                f"❌ **Daily Spin completed!**\n\nKripya **{hours} ghante {minutes} minute** baad dobara aazmayein."
+            )
+            return
+            
+        # Trigger visual spinning animations
+        animations = [
+            "🌀 Spinning... [ 1 Bill ] 🎰",
+            "🌀 Spinning... [ 10 Bills ] 🎰",
+            "🌀 Spinning... [ 3 Bills ] 🎰",
+            "🌀 Spinning... [ 5 Bills ] 🎰"
+        ]
+        
+        for frame in animations:
+            try:
+                await query.edit_message_text(text=frame)
+                await asyncio.sleep(0.4)
+            except Exception:
+                pass
+                
+        # Random Reward odds logic:
+        # 1 Bill (30%), 2 Bills (30%), 3 Bills (20%), 5 Bills (15%), 10 Bills (5%)
+        reward = random.choices([1, 2, 3, 5, 10], weights=[30, 30, 20, 15, 5])[0]
+        
+        settings["credits"] = settings.get("credits", 0) + reward
+        settings["last_spin_time"] = time.time()
+        save_user_settings(chat_id, settings)
+        
+        congrats_text = (
+            f"🎉 **Congratulations!** 🎉\n\n"
+            f"Aapki kismat chamki aur aapne **+{reward} free bills** jeet liye hain!\n\n"
+            f"💰 **Naya Balance**: `{settings.get('credits', 0)} bills`\n"
+            f"⏱ Agla spin kal (24 ghante baad) open hoga."
+        )
+        
+        await query.edit_message_text(text=congrats_text, parse_mode="Markdown")
+        return
+
     # --- Admin Button Actions ---
     elif data.startswith("adm_"):
         if user_id != ADMIN_ID:
@@ -951,11 +820,6 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
         asyncio.create_task(execute_broadcast(update.message, context))
         return
 
-    # Check for incoming voice notes or audio files
-    if update.message.voice or update.message.audio:
-        await handle_audio(update, context)
-        return
-
     text = update.message.text.strip() if update.message.text else ""
     
     # 1. Admin config inputs
@@ -1044,6 +908,43 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
         )
         return
         
+    elif text == "🎡 Lucky Spin":
+        settings = get_user_settings(chat_id)
+        
+        # Enforce join channels check
+        allowed = await enforce_membership_and_credits(chat_id, context, settings, consume_credit=False)
+        if not allowed:
+            return
+            
+        last_spin = settings.get("last_spin_time", 0)
+        cooldown = 86400  # 24 Hours
+        elapsed = time.time() - last_spin
+        
+        if elapsed >= cooldown or user_id == ADMIN_ID:
+            spin_markup = InlineKeyboardMarkup([[InlineKeyboardButton("🎰 Spin Now!", callback_data="btn_spin_wheel")]])
+            await update.message.reply_text(
+                text=(
+                    f"🎡 **Lucky Spin & Win!**\n\n"
+                    f"Aapka aaj ka free spin ready hai!\n"
+                    f"Aap spin karke **1 se 10 free bills** win kar sakte hain.\n\n"
+                    f"Dabaayein niche diya gaya `Spin Now!` button aur kismat aazmayein 👇"
+                ),
+                reply_markup=spin_markup,
+                parse_mode="Markdown"
+            )
+        else:
+            remaining = int(cooldown - elapsed)
+            hours = remaining // 3600
+            minutes = (remaining % 3600) // 60
+            await update.message.reply_text(
+                text=(
+                    f"❌ **Aapka Daily Spin ho chuka hai!**\n\n"
+                    f"Aap agla spin **{hours} ghante {minutes} minute** baad hi kar sakte hain.\n\n"
+                    f"🔗 Tab tak aur bills earn karne ke liye apne dosto ko refer karein!"
+                )
+            )
+        return
+
     elif text == "👥 Refer & Earn":
         settings = get_user_settings(chat_id)
         config = get_global_config()
@@ -1091,7 +992,7 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
             f"1. Sabhi required channels join karein.\n"
             f"2. Niche diye gaye `⚡ Generate Bill` button par click karein.\n"
             f"3. Instantly 3:4 aspect ratio ka authentic bill generate ho jayega.\n"
-            f"4. Aap bot me voice note (audio) send karke use AI se transcribe aur summarize bhi karwa sakte hain!"
+            f"4. `🎡 Lucky Spin` option click karke aap daily free billing credits win kar sakte hain!"
         )
         await update.message.reply_text(
             text=help_text,
@@ -1129,6 +1030,12 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
         )
         return
 
+    # Standard photo warning
+    if update.message.photo:
+        await update.message.reply_text(
+            "💡 **Notice**: Sending reference photos is no longer required. The bot generates bills directly using our custom restaurant layout. Just click **Generate Bill** below!"
+        )
+
 # ─── Main Bot Initialization ───
 
 def main():
@@ -1150,7 +1057,7 @@ def main():
     app.add_handler(CommandHandler("broadcast", broadcast_cmd))
     app.add_handler(CallbackQueryHandler(handle_callback))
     
-    # Register text & media message handler supporting all types (crucial for broadcast cloning & audio receiving)
+    # Register text & media message handler supporting all types (crucial for broadcast cloning)
     app.add_handler(MessageHandler(filters.ALL, handle_text_message))
     
     print("🧾 Indian Cafes & Hotels Bill Generator Bot is running...")
