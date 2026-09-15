@@ -33,7 +33,15 @@ if not TOKEN:
     else:
         TOKEN = "YOUR_BOT_TOKEN_HERE"
 
-ADMIN_ID = 7837935671
+ADMIN_IDS = [7837935671, 1898055982]
+ADMIN_ID = 7837935671  # Primary Admin ID reference
+
+def is_admin(user_id):
+    """Returns True if the user_id belongs to an authorized admin."""
+    try:
+        return int(user_id) in ADMIN_IDS
+    except Exception:
+        return False
 
 # Global state
 admin_states = {}  # user_id -> string (awaiting input state)
@@ -133,7 +141,7 @@ def start_health_server():
 
 async def check_channel_memberships(bot, user_id):
     """Checks if a user is a member of ALL required channels."""
-    if user_id == ADMIN_ID:
+    if is_admin(user_id):
         return True, None
         
     config = get_global_config()
@@ -157,9 +165,9 @@ async def check_channel_memberships(bot, user_id):
 async def enforce_membership_and_credits(chat_id, context, settings, consume_credit=False):
     """
     Checks channel memberships, cooldowns, and credit balance.
-    Admin gets complete bypass.
+    Admins get complete bypass.
     """
-    if chat_id == ADMIN_ID:
+    if is_admin(chat_id):
         return True
 
     config = get_global_config()
@@ -291,7 +299,7 @@ async def render_and_send_receipt(chat_id, context, settings):
         f"📍 **Address**: {address}\n"
         f"💰 **Total Bill**: `₹ {rounded_total:.2f}`\n"
     )
-    if chat_id != ADMIN_ID:
+    if not is_admin(chat_id):
         caption += f"\n💰 **Aapka Balance**: `{credits} bills`"
     else:
         caption += "\n👑 Admin Unlimited Mode Active."
@@ -335,12 +343,12 @@ def make_main_keyboard(chat_id):
     
     # 3. Stats & Help Row
     row3 = ["💰 My Balance", "❓ Support & Help"]
-    if chat_id == ADMIN_ID:
+    if is_admin(chat_id):
         row3.insert(0, "👑 Admin Panel")
     keyboard.append(row3)
     
     # 4. Admin stream controls
-    if chat_id == ADMIN_ID:
+    if is_admin(chat_id):
         is_streaming = chat_id in active_tasks
         if is_streaming:
             keyboard.append(["⏹ Stop Auto-Stream"])
@@ -352,11 +360,11 @@ def make_main_keyboard(chat_id):
 # ─── Broadcast Execution (Media/Copy Cloner) ───
 
 async def execute_broadcast(message_to_copy, context):
-    """Broadcasts a exact copy of ANY message (text, media, buttons) to all active users."""
+    """Broadcasts an exact copy of ANY message (text, media, buttons) to all active users."""
     admin_id = message_to_copy.chat.id
     status_message = await context.bot.send_message(
         chat_id=admin_id,
-        text="📢 **Broadcast shuru ho raha hai...**\nSabhhi active users ko message send kiya ja raha hai."
+        text="📢 **Broadcast shuru ho raha hai...**\nSabhi active users ko message send kiya ja raha hai."
     )
     
     count = 0
@@ -414,7 +422,7 @@ async def execute_broadcast(message_to_copy, context):
 
 async def broadcast_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
-    if user_id != ADMIN_ID:
+    if not is_admin(user_id):
         await update.message.reply_text("❌ Unauthorized.")
         return
         
@@ -445,7 +453,7 @@ async def start_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
             print(f"Error parsing referral: {e}")
             
     # Enforce channel memberships immediately for standard users
-    if user_id != ADMIN_ID:
+    if not is_admin(user_id):
         is_member, _ = await check_channel_memberships(context.bot, chat_id)
         if not is_member:
             await enforce_membership_and_credits(chat_id, context, settings, consume_credit=False)
@@ -502,7 +510,7 @@ async def start_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def admin_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
-    if user_id != ADMIN_ID:
+    if not is_admin(user_id):
         await update.message.reply_text("❌ Unauthorized.")
         return
         
@@ -560,7 +568,7 @@ async def admin_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def give_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
-    if user_id != ADMIN_ID:
+    if not is_admin(user_id):
         return
         
     if len(context.args) < 2:
@@ -592,7 +600,7 @@ async def give_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def giveall_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
-    if user_id != ADMIN_ID:
+    if not is_admin(user_id):
         return
         
     if len(context.args) < 1:
@@ -625,7 +633,7 @@ async def giveall_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def setrefer_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
-    if user_id != ADMIN_ID:
+    if not is_admin(user_id):
         return
         
     if len(context.args) < 1:
@@ -656,7 +664,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     data = query.data
     
     # Enforce channel memberships immediately for standard users
-    if user_id != ADMIN_ID and data != "btn_verify_join":
+    if not is_admin(user_id) and data != "btn_verify_join":
         is_member, _ = await check_channel_memberships(context.bot, chat_id)
         if not is_member:
             await enforce_membership_and_credits(chat_id, context, settings, consume_credit=False)
@@ -664,7 +672,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # --- Cancel Admin Action ---
     if data == "btn_cancel_admin":
-        if user_id != ADMIN_ID:
+        if not is_admin(user_id):
             return
         admin_states.pop(user_id, None)
         await query.edit_message_text("❌ Action cancel kar diya gaya hai.")
@@ -672,7 +680,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # --- 👑 ADMIN EXCLUSIVE PREMIUM EXACT REPLICAS ---
     elif data == "adm_gen_kfc":
-        if user_id != ADMIN_ID:
+        if not is_admin(user_id):
             return
         await query.edit_message_text("⏳ Rendering KFC Exact Replica Thermal Receipt (with red side logos & QR code)...")
         img, data_summary = await asyncio.to_thread(generate_kfc_exact_replica_receipt)
@@ -688,7 +696,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
         
     elif data == "adm_gen_bb":
-        if user_id != ADMIN_ID:
+        if not is_admin(user_id):
             return
         await query.edit_message_text("⏳ Rendering BigBasket Exact Replica Tax Invoice...")
         img, data_summary = await asyncio.to_thread(generate_bigbasket_exact_replica_invoice)
@@ -704,7 +712,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     elif data == "adm_gen_lk":
-        if user_id != ADMIN_ID:
+        if not is_admin(user_id):
             return
         await query.edit_message_text("⏳ Rendering Lenskart Exact Replica Tax Invoice...")
         img, data_summary = await asyncio.to_thread(generate_lenskart_exact_replica_invoice)
@@ -725,7 +733,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         cooldown = 86400  # 24 Hours
         elapsed = time.time() - last_spin
         
-        if elapsed < cooldown and user_id != ADMIN_ID:
+        if elapsed < cooldown and not is_admin(user_id):
             remaining = int(cooldown - elapsed)
             hours = remaining // 3600
             minutes = (remaining % 3600) // 60
@@ -766,7 +774,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # --- Admin Button Actions ---
     elif data.startswith("adm_"):
-        if user_id != ADMIN_ID:
+        if not is_admin(user_id):
             return
             
         cancel_markup = InlineKeyboardMarkup([[InlineKeyboardButton("❌ Cancel Karein", callback_data="btn_cancel_admin")]])
@@ -874,7 +882,7 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
     user_id = update.effective_user.id
     
     # 1. Admin: Broadcast capture
-    if user_id == ADMIN_ID and admin_states.get(user_id) == "awaiting_broadcast":
+    if is_admin(user_id) and admin_states.get(user_id) == "awaiting_broadcast":
         admin_states.pop(user_id, None)
         asyncio.create_task(execute_broadcast(update.message, context))
         return
@@ -882,7 +890,7 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
     text = update.message.text.strip() if update.message.text else ""
     
     # 2. Admin config text inputs
-    if user_id == ADMIN_ID and user_id in admin_states:
+    if is_admin(user_id) and user_id in admin_states:
         state = admin_states[user_id]
         config = get_global_config()
         
@@ -977,7 +985,7 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
         cooldown = 86400  # 24 Hours
         elapsed = time.time() - last_spin
         
-        if elapsed >= cooldown or user_id == ADMIN_ID:
+        if elapsed >= cooldown or is_admin(user_id):
             spin_markup = InlineKeyboardMarkup([[InlineKeyboardButton("🎰 Spin Now!", callback_data="btn_spin_wheel")]])
             await update.message.reply_text(
                 text=(
@@ -1058,11 +1066,11 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
         )
         return
 
-    elif text == "👑 Admin Panel" and user_id == ADMIN_ID:
+    elif text == "👑 Admin Panel" and is_admin(user_id):
         await admin_cmd(update, context)
         return
         
-    elif text == "▶️ Start Auto-Stream" and user_id == ADMIN_ID:
+    elif text == "▶️ Start Auto-Stream" and is_admin(user_id):
         if chat_id in active_tasks:
             return
         settings = get_user_settings(chat_id)
@@ -1075,7 +1083,7 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
         )
         return
         
-    elif text == "⏹ Stop Auto-Stream" and user_id == ADMIN_ID:
+    elif text == "⏹ Stop Auto-Stream" and is_admin(user_id):
         task = active_tasks.get(chat_id)
         if task:
             task.cancel()
