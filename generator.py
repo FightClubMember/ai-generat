@@ -46,134 +46,73 @@ def get_font(size, bold=False):
             pass
     return ImageFont.load_default()
 
-# ─── Dynamic Restaurant & Retail Brand Pools (Real Locations) ───
+# ─── Dynamic Store & Brand Pools (Exact Real Sample Details) ───
 
 STORES_POOL = [
     {
-        "name": "ROYAL CHINESE GARDEN",
-        "subtitle": "(AUTHENTIC CHINESE CUISINE)",
-        "address": "Unit 3, LBS Marg, Ghatkopar West",
-        "city": "Mumbai, India",
-        "tel": "022-25118877",
-        "gstin": "27FFGGH7890P5Z2",
+        "name": "KFC (DEVYANI INTERNATIONAL LTD)",
+        "subtitle": "(Medanta - The Medicity)",
+        "address": "Sec-38, Gurgaon, Haryana",
+        "city": "POS: Haryana",
+        "tel": "FSSAI: 10617005000139",
+        "gstin": "06AABCD5534A1Z9",
         "separator": "-",
         "has_gst": True,
         "tax_rate": 0.05,
-        "footer": "THANK YOU VISIT AGAIN !!!",
+        "footer": "THANK YOU FOR VISITING KFC !!!",
         "layout_type": "grid",
         "items": [
-            ("Mineral Water", 50.00),
-            ("Lassi", 130.00),
-            ("Malai Kofta", 380.00),
-            ("Aloo Paratha", 160.00),
-            ("Dal Makhani", 320.00),
-            ("Fried Rice", 280.00),
-            ("Chilli Paneer", 360.00),
-            ("Veg Noodles", 240.00),
-            ("Spring Roll", 180.00),
-            ("Veg Manchurian", 260.00),
-            ("Sweet Corn Soup", 140.00),
-            ("Masala Papad", 60.00)
+            ("Indian Spicy Veg Rol", 213.50),
+            ("ADDON REG FRIES & PEPSI", 145.00),
+            ("Chana Burger DI/TA", 68.50),
+            ("Zinger Burger", 189.00),
+            ("Popcorn Chicken (L)", 249.00),
+            ("Hot & Crispy 2Pcs", 229.00),
+            ("Veg Zinger Meal", 299.00),
+            ("Pepsi Can 330ml", 60.00)
         ]
     },
     {
-        "name": "SHREE DEVI VEG COURT",
-        "subtitle": "(PURE VEG SOUTH INDIAN)",
-        "address": "Shop 12, MG Road, Fort",
-        "city": "Mumbai, India",
-        "tel": "022-22669911",
-        "gstin": "27AAACS1234D1Z5",
+        "name": "BIGBASKET (INNOVATIVE RETAIL)",
+        "subtitle": "(A TATA ENTERPRISE)",
+        "address": "Khata No 97-1, Vill-Dundahera, Sec 22",
+        "city": "Gurgaon, Haryana, 122016",
+        "tel": "18601231000",
+        "gstin": "06AACCI2053A1ZB",
         "separator": "=",
         "has_gst": True,
         "tax_rate": 0.05,
-        "footer": "THANK YOU VISIT AGAIN !!!",
+        "footer": "THANK YOU FOR SHOPPING AT BIGBASKET",
         "layout_type": "grid",
         "items": [
-            ("Masala Dosa", 120.00),
-            ("Idli Sambhar", 80.00),
-            ("Medu Vada", 90.00),
-            ("Filter Coffee", 50.00),
-            ("Onion Uttapam", 110.00),
-            ("Rava Dosa", 130.00),
-            ("Butter Dosa", 140.00),
-            ("Veg Pulao", 180.00),
-            ("Sweet Lassi", 90.00),
-            ("Thums Up", 40.00)
+            ("Sunfeast Dark Fantasy 108g", 30.00),
+            ("Parle Happy Happy Choco 60g", 10.00),
+            ("Brooke Bond Taaza Tea 250g", 60.00),
+            ("Aashirvaad Atta 5kg", 265.00),
+            ("Fortune Mustard Oil 1L", 160.00),
+            ("Tata Salt Lite 1kg", 32.00),
+            ("Handling Charge", 8.00)
         ]
     },
     {
-        "name": "THE TAJ PALACE HOTEL",
-        "subtitle": "(MUGHLAI FINE DINING)",
-        "address": "Apollo Bunder, Colaba",
-        "city": "Mumbai, India",
-        "tel": "022-66653366",
-        "gstin": "27TAJPH6789K2Z0",
+        "name": "LENSKART SOLUTIONS LTD",
+        "subtitle": "(EYEWEAR OPTICAL RETAIL)",
+        "address": "Plot 151, Okhla Ind. Estate, Phase III",
+        "city": "New Delhi, 110020",
+        "tel": "CIN: L33100DL2008PLC178355",
+        "gstin": "08AACCV7324B1ZK",
         "separator": "-",
         "has_gst": True,
-        "tax_rate": 0.18,  # Fine Dining 18% GST
-        "footer": "THANK YOU FOR DINING WITH US",
+        "tax_rate": 0.12,  # Eyewear Tax Rate
+        "footer": "LOG ON TO LENSKART.COM FOR MORE",
         "layout_type": "grid",
         "items": [
-            ("Butter Chicken", 480.00),
-            ("Chicken Biryani", 420.00),
-            ("Paneer Tikka", 360.00),
-            ("Tandoori Roti", 40.00),
-            ("Butter Naan", 70.00),
-            ("Dal Tadka", 280.00),
-            ("Veg Kadhai", 320.00),
-            ("Garlic Kebab", 390.00),
-            ("Jeera Rice", 180.00),
-            ("Gulab Jamun", 120.00)
-        ]
-    },
-    {
-        "name": "CAFE COFFEE TIME",
-        "subtitle": "(DELICIOUS SNACKS & BREWS)",
-        "address": "Carter Road, Bandra West",
-        "city": "Mumbai, India",
-        "tel": "022-26448833",
-        "gstin": "27CCFTM4567A1Z3",
-        "separator": ".",
-        "has_gst": True,
-        "tax_rate": 0.05,
-        "footer": "HAVE A COFFEE-FILLED DAY!",
-        "layout_type": "lines",
-        "items": [
-            ("Cappuccino", 160.00),
-            ("Cafe Latte", 170.00),
-            ("Cold Coffee", 190.00),
-            ("Cheese Sandwich", 150.00),
-            ("Garlic Bread", 120.00),
-            ("Chocolate Brownie", 140.00),
-            ("French Fries", 110.00),
-            ("Veg Burger", 130.00),
-            ("Green Tea", 90.00),
-            ("Vanilla Shake", 160.00)
-        ]
-    },
-    {
-        "name": "UDUPI REFRESHMENTS",
-        "subtitle": "(FAST FOOD & VEG SNACKS)",
-        "address": "Dadar West Station Road",
-        "city": "Mumbai, India",
-        "tel": "022-24335566",
-        "gstin": "27UDUPI9876P2Z9",
-        "separator": "-",
-        "has_gst": True,
-        "tax_rate": 0.05,
-        "footer": "THANK YOU VISIT AGAIN !!!",
-        "layout_type": "grid",
-        "items": [
-            ("Mysore Masala Dosa", 130.00),
-            ("Sada Dosa", 90.00),
-            ("Paper Dosa", 150.00),
-            ("Wada Pav (Plate)", 60.00),
-            ("Special Tea", 30.00),
-            ("Poori Bhaji", 100.00),
-            ("Pav Bhaji", 140.00),
-            ("Cheese Pav Bhaji", 170.00),
-            ("Upma", 70.00),
-            ("Sheera", 70.00)
+            ("Lenskart Air Comfort Frame", 1694.92),
+            ("BLU Screen Anti-Glare Lens", 1200.00),
+            ("Vincent Chase Air Flex", 1500.00),
+            ("Lens Cleaning Spray 100ml", 150.00),
+            ("Microfiber Cloth", 50.00),
+            ("Computer Glasses", 999.00)
         ]
     },
     {
@@ -197,49 +136,6 @@ STORES_POOL = [
             ("Mother Dairy Curd", 45.00),
             ("Delivery Charge", 25.00),
             ("Handling Fee", 5.00)
-        ]
-    },
-    {
-        "name": "TATA BIGBASKET",
-        "subtitle": "(TATA ENTERPRISE E-GROCERY)",
-        "address": "Hub 18, Whitefield Main Road",
-        "city": "Bengaluru, Karnataka, India",
-        "tel": "080-68688000",
-        "gstin": "29AAACB8899K1Z2",
-        "separator": "=",
-        "has_gst": True,
-        "tax_rate": 0.05,
-        "footer": "THANK YOU FOR SHOPPING AT BIGBASKET",
-        "layout_type": "grid",
-        "items": [
-            ("Aashirvaad Atta 5kg", 265.00),
-            ("Fortune Mustard Oil", 160.00),
-            ("Tata Salt Lite 1kg", 32.00),
-            ("Surf Excel Easy Wash", 145.00),
-            ("Fortune Basmati Rice", 380.00),
-            ("BB Royal Toor Dal 1k", 175.00),
-            ("Everest Garam Masala", 82.00)
-        ]
-    },
-    {
-        "name": "LENSKART SOLUTIONS",
-        "subtitle": "(EYEWEAR & OPTICAL RETAIL)",
-        "address": "Shop G-14, Inner Circle, Connaught Place",
-        "city": "New Delhi, India",
-        "tel": "011-43228800",
-        "gstin": "07AABCL5544E1Z9",
-        "separator": "-",
-        "has_gst": True,
-        "tax_rate": 0.12,  # 12% Eyewear Tax Rate
-        "footer": "LOG ON TO LENSKART.COM FOR MORE",
-        "layout_type": "grid",
-        "items": [
-            ("VC Air Flex Frame", 1500.00),
-            ("Anti-Glare Blue Lens", 1200.00),
-            ("Lens Cleaning Spray", 150.00),
-            ("Microfiber Cloth", 50.00),
-            ("Computer Glasses", 999.00),
-            ("Contact Lens Soln", 350.00)
         ]
     },
     {
@@ -287,12 +183,118 @@ STORES_POOL = [
         ]
     },
     {
+        "name": "ROYAL CHINESE GARDEN",
+        "subtitle": "(AUTHENTIC CHINESE CUISINE)",
+        "address": "Unit 3, LBS Marg, Ghatkopar West",
+        "city": "Mumbai, India",
+        "tel": "022-25118877",
+        "gstin": "27FFGGH7890P5Z2",
+        "separator": "-",
+        "has_gst": True,
+        "tax_rate": 0.05,
+        "footer": "THANK YOU VISIT AGAIN !!!",
+        "layout_type": "grid",
+        "items": [
+            ("Mineral Water", 50.00),
+            ("Lassi", 130.00),
+            ("Malai Kofta", 380.00),
+            ("Aloo Paratha", 160.00),
+            ("Dal Makhani", 320.00),
+            ("Fried Rice", 280.00),
+            ("Chilli Paneer", 360.00),
+            ("Veg Noodles", 240.00)
+        ]
+    },
+    {
+        "name": "SHREE DEVI VEG COURT",
+        "subtitle": "(PURE VEG SOUTH INDIAN)",
+        "address": "Shop 12, MG Road, Fort",
+        "city": "Mumbai, India",
+        "tel": "022-22669911",
+        "gstin": "27AAACS1234D1Z5",
+        "separator": "=",
+        "has_gst": True,
+        "tax_rate": 0.05,
+        "footer": "THANK YOU VISIT AGAIN !!!",
+        "layout_type": "grid",
+        "items": [
+            ("Masala Dosa", 120.00),
+            ("Idli Sambhar", 80.00),
+            ("Medu Vada", 90.00),
+            ("Filter Coffee", 50.00),
+            ("Onion Uttapam", 110.00),
+            ("Rava Dosa", 130.00),
+            ("Butter Dosa", 140.00)
+        ]
+    },
+    {
+        "name": "THE TAJ PALACE HOTEL",
+        "subtitle": "(MUGHLAI FINE DINING)",
+        "address": "Apollo Bunder, Colaba",
+        "city": "Mumbai, India",
+        "tel": "022-66653366",
+        "gstin": "27TAJPH6789K2Z0",
+        "separator": "-",
+        "has_gst": True,
+        "tax_rate": 0.18,
+        "footer": "THANK YOU FOR DINING WITH US",
+        "layout_type": "grid",
+        "items": [
+            ("Butter Chicken", 480.00),
+            ("Chicken Biryani", 420.00),
+            ("Paneer Tikka", 360.00),
+            ("Tandoori Roti", 40.00),
+            ("Butter Naan", 70.00),
+            ("Dal Tadka", 280.00)
+        ]
+    },
+    {
+        "name": "CAFE COFFEE TIME",
+        "subtitle": "(DELICIOUS SNACKS & BREWS)",
+        "address": "Carter Road, Bandra West",
+        "city": "Mumbai, India",
+        "tel": "022-26448833",
+        "gstin": "27CCFTM4567A1Z3",
+        "separator": ".",
+        "has_gst": True,
+        "tax_rate": 0.05,
+        "footer": "HAVE A COFFEE-FILLED DAY!",
+        "layout_type": "lines",
+        "items": [
+            ("Cappuccino", 160.00),
+            ("Cafe Latte", 170.00),
+            ("Cold Coffee", 190.00),
+            ("Cheese Sandwich", 150.00),
+            ("Garlic Bread", 120.00)
+        ]
+    },
+    {
+        "name": "UDUPI REFRESHMENTS",
+        "subtitle": "(FAST FOOD & VEG SNACKS)",
+        "address": "Dadar West Station Road",
+        "city": "Mumbai, India",
+        "tel": "022-24335566",
+        "gstin": "27UDUPI9876P2Z9",
+        "separator": "-",
+        "has_gst": True,
+        "tax_rate": 0.05,
+        "footer": "THANK YOU VISIT AGAIN !!!",
+        "layout_type": "grid",
+        "items": [
+            ("Mysore Masala Dosa", 130.00),
+            ("Sada Dosa", 90.00),
+            ("Paper Dosa", 150.00),
+            ("Wada Pav (Plate)", 60.00),
+            ("Special Tea", 30.00)
+        ]
+    },
+    {
         "name": "PUNJABI DHABA & RESTAURANT",
         "subtitle": "(AUTHENTIC NORTH INDIAN)",
         "address": "NH-44 Highway, bypass road",
         "city": "Panipat, Haryana, India",
         "tel": "0180-2566778",
-        "gstin": "",  # Local dhaba, no GSTIN
+        "gstin": "",
         "separator": "*",
         "has_gst": False,
         "tax_rate": 0.00,
@@ -303,12 +305,7 @@ STORES_POOL = [
             ("Shahi Paneer", 230.00),
             ("Dal Makhani", 190.00),
             ("Tandoori Butter Roti", 25.00),
-            ("Butter Naan", 50.00),
-            ("Jeera Aloo", 140.00),
-            ("Sweet Lassi (Big)", 70.00),
-            ("Mix Veg", 180.00),
-            ("Boondi Raita", 90.00),
-            ("Papad Roast", 30.00)
+            ("Butter Naan", 50.00)
         ]
     },
     {
@@ -327,11 +324,7 @@ STORES_POOL = [
             ("Veg Banjo", 50.00),
             ("Egg Banjo", 60.00),
             ("Mutton Hotdog", 120.00),
-            ("Cheese Veg Banjo", 70.00),
-            ("Johny Special Bun", 40.00),
-            ("French Fries", 80.00),
-            ("Cold Coffee", 70.00),
-            ("Cold Drink Pepsi", 40.00)
+            ("Cheese Veg Banjo", 70.00)
         ]
     },
     {
@@ -351,11 +344,7 @@ STORES_POOL = [
             ("Motichoor Laddu (250g)", 150.00),
             ("Gulab Jamun (Plate)", 70.00),
             ("Rasgulla (Plate)", 70.00),
-            ("Samosa Garam (Plate)", 40.00),
-            ("Dhokla Fresh (250g)", 80.00),
-            ("Special Jalebi (Plate)", 60.00),
-            ("Aloo Tikki Chaat", 80.00),
-            ("Dry Fruits Pack", 450.00)
+            ("Samosa Garam (Plate)", 40.00)
         ]
     },
     {
@@ -374,36 +363,7 @@ STORES_POOL = [
             ("Margherita Pizza", 299.00),
             ("Paneer Tikka Pizza", 399.00),
             ("Veg Overloaded Pizza", 449.00),
-            ("Garlic Bread Sticks", 139.00),
-            ("Stuffed Garlic Bread", 199.00),
-            ("Choco Lava Cake", 109.00),
-            ("Veg White Pasta", 249.00),
-            ("Pepsi Can", 60.00),
-            ("Mineral Water Bottle", 40.00)
-        ]
-    },
-    {
-        "name": "SARAVANA BHAVAN",
-        "subtitle": "(PREMIUM SOUTH INDIAN RESTAURANT)",
-        "address": "Janpath, Connaught Place",
-        "city": "New Delhi, India",
-        "tel": "011-23311955",
-        "gstin": "07SARAV9876Q1Z9",
-        "separator": "-",
-        "has_gst": True,
-        "tax_rate": 0.05,
-        "footer": "THANK YOU VISIT AGAIN !!!",
-        "layout_type": "grid",
-        "items": [
-            ("Ghee Roast Dosa", 170.00),
-            ("Special Idli Sambhar", 110.00),
-            ("Medu Vada (2 Pcs)", 120.00),
-            ("Saravana Spl Dosa", 210.00),
-            ("Rava Masala Dosa", 190.00),
-            ("South Indian Thali", 320.00),
-            ("Mini Ghee Idlis (14)", 140.00),
-            ("Madras Filter Coffee", 70.00),
-            ("Fresh Mango Juice", 130.00)
+            ("Garlic Bread Sticks", 139.00)
         ]
     }
 ]
@@ -421,7 +381,7 @@ def get_receipt_data():
     receipt_no = ''.join(random.choices(string.digits, k=4))
     
     items = []
-    count = random.randint(3, 7)
+    count = min(len(store["items"]), random.randint(3, 5))
     selected = random.sample(store["items"], count)
     
     for name, u_price in selected:
