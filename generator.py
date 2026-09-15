@@ -380,7 +380,7 @@ def draw_receipt_canvas(data, text_color):
         
     return canvas
 
-# ─── 👑 ADMIN ULTRA HIGH-DEF EXACT REPLICAS (DYNAMIC RANDOM DATA EVERY TIME) ───
+# ─── 👑 ADMIN ULTRA HIGH-DEF EXACT REPLICAS (WITH CUSTOM ADDRESS SUPPORT) ───
 
 KFC_MENU = [
     ("Indian Spicy Veg Rol", 213.50),
@@ -407,15 +407,19 @@ KFC_LOCATIONS = [
     ("Phoenix Marketcity", "Kurla West, Mumbai(Maharashtra)")
 ]
 
-def generate_kfc_exact_replica_receipt():
+def generate_kfc_exact_replica_receipt(custom_address=None, custom_name=None):
     """
     Renders an ULTRA HD (2X High DPI) visual replica of the KFC thermal receipt (IMG_20260915_074530_315.jpg)
-    with completely RANDOMIZED dynamic data (Total ALWAYS > ₹500).
+    with dynamic data and optional custom admin address.
     """
     scale = 2 # 2X High DPI supersampling
     width = 460 * scale
     
-    loc = random.choice(KFC_LOCATIONS)
+    if custom_address:
+        loc = ("KFC Express Branch", custom_address)
+    else:
+        loc = random.choice(KFC_LOCATIONS)
+        
     d = datetime.now() - timedelta(days=random.randint(0, 10), hours=random.randint(0, 23), minutes=random.randint(0, 59))
     date_str = d.strftime("%d-%m-%y %H:%M")
     
@@ -450,7 +454,14 @@ def generate_kfc_exact_replica_receipt():
     lines.append(("KFC,", True, True, True))
     lines.append(("Devyani International Ltd.", True, False, True))
     lines.append((loc[0], False, False, True))
-    lines.append((loc[1], False, False, True))
+    
+    addr_str = loc[1]
+    if len(addr_str) > 34:
+        lines.append((addr_str[:34], False, False, True))
+        lines.append((addr_str[34:68], False, False, True))
+    else:
+        lines.append((addr_str, False, False, True))
+        
     lines.append(("POS: Haryana", False, False, True))
     lines.append(("GSTIN No.: 06AABCD5534A1Z9", False, False, True))
     lines.append(("Service Code Tariff: 996331", False, False, True))
@@ -563,10 +574,10 @@ CUSTOMER_POOL = [
     ("Sanjay Gupta", "Civil Lines, Near Circuit House, Jaipur (08)")
 ]
 
-def generate_bigbasket_exact_replica_invoice():
+def generate_bigbasket_exact_replica_invoice(custom_address=None, custom_name=None):
     """
     Renders an ULTRA HD (2X High DPI) visual replica of BigBasket Tax Invoice (Invoice_from_bb_2100479625.pdf)
-    with RANDOMIZED dynamic data (Total > ₹500), 100% visible total amount, and exact blue signature copy.
+    with optional custom admin address and name.
     """
     scale = 2
     width = 800 * scale
@@ -574,7 +585,12 @@ def generate_bigbasket_exact_replica_invoice():
     canvas = Image.new("RGB", (width, height), (255, 255, 255))
     draw = ImageDraw.Draw(canvas)
     
-    cust = random.choice(CUSTOMER_POOL)
+    if custom_address:
+        c_name = custom_name if custom_name else "Arbind Singh"
+        cust = (c_name, custom_address)
+    else:
+        cust = random.choice(CUSTOMER_POOL)
+        
     inv_num = f"IEXHR26I{''.join(random.choices(string.digits, k=5))}"
     d = datetime.now() - timedelta(days=random.randint(0, 10))
     inv_date = d.strftime("%Y-%m-%d")
@@ -609,8 +625,11 @@ def generate_bigbasket_exact_replica_invoice():
     draw.rectangle([320 * scale, 120 * scale, 550 * scale, 260 * scale], fill=(255, 255, 255), outline=(220, 220, 220))
     draw.text((330 * scale, 130 * scale), "Bill to / Ship to:", font=font_bold, fill=(80, 80, 80))
     draw.text((330 * scale, 155 * scale), cust[0], font=font_bold, fill=(30, 30, 30))
-    draw.text((330 * scale, 178 * scale), cust[1][:32], font=font_reg, fill=(30, 30, 30))
-    draw.text((330 * scale, 196 * scale), cust[1][32:], font=font_reg, fill=(30, 30, 30))
+    
+    addr_line1 = cust[1][:32] if len(cust[1]) > 32 else cust[1]
+    addr_line2 = cust[1][32:64] if len(cust[1]) > 32 else ""
+    draw.text((330 * scale, 178 * scale), addr_line1, font=font_reg, fill=(30, 30, 30))
+    draw.text((330 * scale, 196 * scale), addr_line2, font=font_reg, fill=(30, 30, 30))
     
     # Invoice Metadata Table
     draw.rectangle([560 * scale, 120 * scale, 765 * scale, 260 * scale], fill=(255, 255, 255), outline=(200, 200, 200))
@@ -718,10 +737,10 @@ LK_ITEMS_CATALOG = [
     ("Aqualens 24H Premium Contact Lenses", "Monthly Disposable Soft Lenses (6 Pcs)", 2400.00, 350.00)
 ]
 
-def generate_lenskart_exact_replica_invoice():
+def generate_lenskart_exact_replica_invoice(custom_address=None, custom_name=None):
     """
     Renders an ULTRA HD (2X High DPI) visual replica of Lenskart Tax Invoice (Invoice_1348995593.pdf)
-    with RANDOMIZED dynamic data (Total ALWAYS ₹2,000 - ₹15,000), real QR code, and exact blue signature copy.
+    with optional custom admin address and name.
     """
     scale = 2
     width = 800 * scale
@@ -729,7 +748,12 @@ def generate_lenskart_exact_replica_invoice():
     canvas = Image.new("RGB", (width, height), (255, 255, 255))
     draw = ImageDraw.Draw(canvas)
     
-    cust = random.choice(CUSTOMER_POOL)
+    if custom_address:
+        c_name = custom_name if custom_name else "Arbind Singh"
+        cust = (c_name, custom_address)
+    else:
+        cust = random.choice(CUSTOMER_POOL)
+        
     shipment_code = f"SNXS12700000075{''.join(random.choices(string.digits, k=5))}"
     order_id = f"1348995{''.join(random.choices(string.digits, k=3))}"
     inv_no = f"IIN10826B{''.join(random.choices(string.digits, k=6))}"
@@ -786,12 +810,15 @@ def generate_lenskart_exact_replica_invoice():
     draw.text((320 * scale, 230 * scale), "Address Of Delivery", font=font_bold, fill=(0, 0, 0))
     
     draw.text((40 * scale, 250 * scale), cust[0], font=font_bold, fill=(0, 0, 0))
-    draw.text((40 * scale, 268 * scale), cust[1][:34], font=font_reg, fill=(0, 0, 0))
-    draw.text((40 * scale, 285 * scale), cust[1][34:], font=font_reg, fill=(0, 0, 0))
+    addr_l1 = cust[1][:34] if len(cust[1]) > 34 else cust[1]
+    addr_l2 = cust[1][34:68] if len(cust[1]) > 34 else ""
+    
+    draw.text((40 * scale, 268 * scale), addr_l1, font=font_reg, fill=(0, 0, 0))
+    draw.text((40 * scale, 285 * scale), addr_l2, font=font_reg, fill=(0, 0, 0))
     
     draw.text((320 * scale, 250 * scale), cust[0], font=font_bold, fill=(0, 0, 0))
-    draw.text((320 * scale, 268 * scale), cust[1][:34], font=font_reg, fill=(0, 0, 0))
-    draw.text((320 * scale, 285 * scale), cust[1][34:], font=font_reg, fill=(0, 0, 0))
+    draw.text((320 * scale, 268 * scale), addr_l1, font=font_reg, fill=(0, 0, 0))
+    draw.text((320 * scale, 285 * scale), addr_l2, font=font_reg, fill=(0, 0, 0))
     
     draw.line([(30 * scale, 325 * scale), (width - (30 * scale), 325 * scale)], fill=(0, 0, 0), width=2)
     

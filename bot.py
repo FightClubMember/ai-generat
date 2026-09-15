@@ -85,7 +85,9 @@ DEFAULT_SETTINGS = {
     "referred_by": "",         # Referrer ID
     "referral_rewarded": False, # Prevent double rewarding
     "referrals_count": 0,      # Total successful referrals
-    "last_spin_time": 0        # Gamification daily spin check
+    "last_spin_time": 0,       # Gamification daily spin check
+    "custom_address": "",      # Admin custom address override
+    "custom_name": ""          # Admin custom customer name override
 }
 
 def get_user_settings(chat_id):
@@ -520,10 +522,16 @@ async def admin_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     cooldown = config.get("cooling_period", 30)
     referral_reward = config.get("referral_reward", 5)
     
+    settings = get_user_settings(user_id)
+    c_addr = settings.get("custom_address", "")
+    c_name = settings.get("custom_name", "")
+    addr_status = f"`{c_name} | {c_addr}`" if c_addr else "*(Not set - using random pool)*"
+    
     text = (
         "👑 **Admin Control Panel & Premium Sample Replicas**\n\n"
         f"• **Cooling Period**: `{cooldown}s`\n"
         f"• **Referral Reward**: `{referral_reward} bills`\n"
+        f"• **Custom Bill Address**: {addr_status}\n"
         f"• **Required Channels**:\n"
     )
     for i, ch in enumerate(channels):
@@ -535,6 +543,7 @@ async def admin_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "• `/give [user_id] [amount]` - Add bills to a user\n"
         "• `/giveall [amount]` - Add bills to all active users\n"
         "• `/setrefer [amount]` - Set referral reward amount\n"
+        "• `/setaddress [Name] | [Address]` - Set custom bill address\n"
         "• `/broadcast [message]` - Broadcast Markdown text directly\n"
         "\n👑 **Admin Exclusive Premium Exact Replicas**:\n"
         "Generate exact sample image replicas for KFC, BigBasket, and Lenskart below!"
@@ -547,6 +556,10 @@ async def admin_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ],
         [
             InlineKeyboardButton("👓 Lenskart Invoice", callback_data="adm_gen_lk")
+        ],
+        [
+            InlineKeyboardButton("📍 Set Custom Address", callback_data="adm_set_address"),
+            InlineKeyboardButton("🔄 Reset Address", callback_data="adm_reset_address")
         ],
         [
             InlineKeyboardButton("⏱ Edit Cooldown", callback_data="adm_edit_cooldown"),
@@ -564,7 +577,7 @@ async def admin_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         parse_mode="Markdown"
     )
 
-# ─── Admin Billing Credit Commands ───
+# ─── Admin Billing Credit & Custom Address Commands ───
 
 async def give_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
@@ -652,6 +665,42 @@ async def setrefer_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         await update.message.reply_text(f"❌ Error: {e}")
 
+async def setaddress_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Admin command to set custom name & address for KFC, BigBasket & Lenskart bills."""
+    user_id = update.effective_user.id
+    if not is_admin(user_id):
+        return
+        
+    if not context.args:
+        await update.message.reply_text(
+            "❌ **Usage**: `/setaddress [Name] | [Address]` ya `/setaddress [Address]`\n\n"
+            "Example: `/setaddress Arbind Singh | Flat 502, Orchid Petals, Sector 49, Gurgaon, Haryana`",
+            parse_mode="Markdown"
+        )
+        return
+        
+    full_text = " ".join(context.args)
+    if "|" in full_text:
+        parts = full_text.split("|", 1)
+        c_name = parts[0].strip()
+        c_addr = parts[1].strip()
+    else:
+        c_name = "Arbind Singh"
+        c_addr = full_text.strip()
+        
+    settings = get_user_settings(user_id)
+    settings["custom_name"] = c_name
+    settings["custom_address"] = c_addr
+    save_user_settings(user_id, settings)
+    
+    await update.message.reply_text(
+        f"✅ **Custom Address Saved for Admin!**\n\n"
+        f"• **Customer Name**: `{c_name}`\n"
+        f"• **Address**: `{c_addr}`\n\n"
+        f"Ab aap jab bhi KFC, BigBasket, ya Lenskart bills generate karenge, ye address exact print hoga!",
+        parse_mode="Markdown"
+    )
+
 # ─── Callback Handler ───
 
 async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -682,8 +731,10 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif data == "adm_gen_kfc":
         if not is_admin(user_id):
             return
-        await query.edit_message_text("⏳ Rendering KFC Exact Replica Thermal Receipt (with red side logos & QR code)...")
-        img, data_summary = await asyncio.to_thread(generate_kfc_exact_replica_receipt)
+        await query.edit_message_text("⏳ Rendering KFC Exact Replica Thermal Receipt (with custom address & QR code)...")
+        c_addr = settings.get("custom_address", None)
+        c_name = settings.get("custom_name", None)
+        img, data_summary = await asyncio.to_thread(generate_kfc_exact_replica_receipt, custom_address=c_addr, custom_name=c_name)
         buf = io.BytesIO()
         img.save(buf, format="PNG", optimize=True)
         buf.seek(0)
@@ -698,8 +749,10 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif data == "adm_gen_bb":
         if not is_admin(user_id):
             return
-        await query.edit_message_text("⏳ Rendering BigBasket Exact Replica Tax Invoice...")
-        img, data_summary = await asyncio.to_thread(generate_bigbasket_exact_replica_invoice)
+        await query.edit_message_text("⏳ Rendering BigBasket Exact Replica Tax Invoice (with custom address)...")
+        c_addr = settings.get("custom_address", None)
+        c_name = settings.get("custom_name", None)
+        img, data_summary = await asyncio.to_thread(generate_bigbasket_exact_replica_invoice, custom_address=c_addr, custom_name=c_name)
         buf = io.BytesIO()
         img.save(buf, format="PNG", optimize=True)
         buf.seek(0)
@@ -714,8 +767,10 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif data == "adm_gen_lk":
         if not is_admin(user_id):
             return
-        await query.edit_message_text("⏳ Rendering Lenskart Exact Replica Tax Invoice...")
-        img, data_summary = await asyncio.to_thread(generate_lenskart_exact_replica_invoice)
+        await query.edit_message_text("⏳ Rendering Lenskart Exact Replica Tax Invoice (with custom address)...")
+        c_addr = settings.get("custom_address", None)
+        c_name = settings.get("custom_name", None)
+        img, data_summary = await asyncio.to_thread(generate_lenskart_exact_replica_invoice, custom_address=c_addr, custom_name=c_name)
         buf = io.BytesIO()
         img.save(buf, format="PNG", optimize=True)
         buf.seek(0)
@@ -779,7 +834,25 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             
         cancel_markup = InlineKeyboardMarkup([[InlineKeyboardButton("❌ Cancel Karein", callback_data="btn_cancel_admin")]])
         
-        if data == "adm_edit_cooldown":
+        if data == "adm_set_address":
+            admin_states[user_id] = "awaiting_custom_address"
+            await query.edit_message_text(
+                text=(
+                    "📍 **Set Custom Address for Admin Bills**\n\n"
+                    "Ab aap jo address yahan type karenge, wo KFC, BigBasket aur Lenskart teeno bills par print hoga!\n\n"
+                    "Format: `[Name] | [Address]` ya sirf address send karein.\n\n"
+                    "Example: `Rahul Sharma | Flat 402, DLF Phase 3, Gurugram, Haryana (122016)`"
+                ),
+                reply_markup=cancel_markup
+            )
+            
+        elif data == "adm_reset_address":
+            settings["custom_address"] = ""
+            settings["custom_name"] = ""
+            save_user_settings(chat_id, settings)
+            await query.edit_message_text("✅ Custom address clear kar diya gaya hai! Ab automatic random address pool use hoga.")
+            
+        elif data == "adm_edit_cooldown":
             admin_states[user_id] = "awaiting_cooldown"
             await query.edit_message_text(
                 text="⏱ **Cooling Period change karein**\n\nNaya cooling period seconds me enter karein (e.g. `60`):",
@@ -894,7 +967,28 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
         state = admin_states[user_id]
         config = get_global_config()
         
-        if state == "awaiting_cooldown":
+        if state == "awaiting_custom_address":
+            if "|" in text:
+                parts = text.split("|", 1)
+                c_name = parts[0].strip()
+                c_addr = parts[1].strip()
+            else:
+                c_name = "Arbind Singh"
+                c_addr = text.strip()
+                
+            user_st = get_user_settings(user_id)
+            user_st["custom_name"] = c_name
+            user_st["custom_address"] = c_addr
+            save_user_settings(user_id, user_st)
+            
+            await update.message.reply_text(
+                f"✅ **Custom Address Saved!**\n\n• **Customer Name**: `{c_name}`\n• **Address**: `{c_addr}`\n\nAb KFC, BigBasket, aur Lenskart teeno bills par yahi address use hoga!",
+                parse_mode="Markdown"
+            )
+            admin_states.pop(user_id, None)
+            return
+
+        elif state == "awaiting_cooldown":
             try:
                 val = int(text)
                 config["cooling_period"] = val
@@ -1119,6 +1213,7 @@ def main():
     app.add_handler(CommandHandler("give", give_cmd))
     app.add_handler(CommandHandler("giveall", giveall_cmd))
     app.add_handler(CommandHandler("setrefer", setrefer_cmd))
+    app.add_handler(CommandHandler("setaddress", setaddress_cmd))
     app.add_handler(CommandHandler("broadcast", broadcast_cmd))
     app.add_handler(CallbackQueryHandler(handle_callback))
     
