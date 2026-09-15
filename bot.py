@@ -17,7 +17,13 @@ from telegram.ext import (
     ContextTypes
 )
 
-from generator import generate_receipt_image, download_fonts
+from generator import (
+    generate_receipt_image,
+    generate_kfc_exact_replica_receipt,
+    generate_bigbasket_exact_replica_invoice,
+    generate_lenskart_exact_replica_invoice,
+    download_fonts
+)
 
 # ─── Configuration ───
 TOKEN = os.getenv("BOT_TOKEN")
@@ -507,7 +513,7 @@ async def admin_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     referral_reward = config.get("referral_reward", 5)
     
     text = (
-        "👑 **Admin Control Panel**\n\n"
+        "👑 **Admin Control Panel & Premium Sample Replicas**\n\n"
         f"• **Cooling Period**: `{cooldown}s`\n"
         f"• **Referral Reward**: `{referral_reward} bills`\n"
         f"• **Required Channels**:\n"
@@ -522,9 +528,18 @@ async def admin_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "• `/giveall [amount]` - Add bills to all active users\n"
         "• `/setrefer [amount]` - Set referral reward amount\n"
         "• `/broadcast [message]` - Broadcast Markdown text directly\n"
+        "\n👑 **Admin Exclusive Premium Exact Replicas**:\n"
+        "Generate exact sample image replicas for KFC, BigBasket, and Lenskart below!"
     )
         
     keyboard = [
+        [
+            InlineKeyboardButton("🍗 KFC Thermal Slip", callback_data="adm_gen_kfc"),
+            InlineKeyboardButton("🛒 BigBasket Invoice", callback_data="adm_gen_bb")
+        ],
+        [
+            InlineKeyboardButton("👓 Lenskart Invoice", callback_data="adm_gen_lk")
+        ],
         [
             InlineKeyboardButton("⏱ Edit Cooldown", callback_data="adm_edit_cooldown"),
             InlineKeyboardButton("📢 Broadcast Message", callback_data="adm_broadcast")
@@ -653,6 +668,55 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
         admin_states.pop(user_id, None)
         await query.edit_message_text("❌ Action cancel kar diya gaya hai.")
+        return
+
+    # --- 👑 ADMIN EXCLUSIVE PREMIUM EXACT REPLICAS ---
+    elif data == "adm_gen_kfc":
+        if user_id != ADMIN_ID:
+            return
+        await query.edit_message_text("⏳ Rendering KFC Exact Replica Thermal Receipt (with red side logos & QR code)...")
+        img, data_summary = await asyncio.to_thread(generate_kfc_exact_replica_receipt)
+        buf = io.BytesIO()
+        img.save(buf, format="PNG", optimize=True)
+        buf.seek(0)
+        await context.bot.send_photo(
+            chat_id=chat_id,
+            photo=buf,
+            caption=f"🍗 **KFC Premium Exact Replica Thermal Slip**\n\n🏬 **Store**: {data_summary['store_name']}\n📍 **Address**: {data_summary['store_addr']}\n💰 **Total**: `₹ {data_summary['total']:.2f}`\n\n👑 *Admin Exclusive Premium Replica*",
+            parse_mode="Markdown"
+        )
+        return
+        
+    elif data == "adm_gen_bb":
+        if user_id != ADMIN_ID:
+            return
+        await query.edit_message_text("⏳ Rendering BigBasket Exact Replica Tax Invoice...")
+        img, data_summary = await asyncio.to_thread(generate_bigbasket_exact_replica_invoice)
+        buf = io.BytesIO()
+        img.save(buf, format="PNG", optimize=True)
+        buf.seek(0)
+        await context.bot.send_photo(
+            chat_id=chat_id,
+            photo=buf,
+            caption=f"🛒 **BigBasket Premium Exact Replica Tax Invoice**\n\n🏬 **Supplier**: {data_summary['store_name']}\n📍 **Address**: {data_summary['store_addr']}\n💰 **Total**: `₹ {data_summary['total']:.2f}`\n\n👑 *Admin Exclusive Premium Replica*",
+            parse_mode="Markdown"
+        )
+        return
+
+    elif data == "adm_gen_lk":
+        if user_id != ADMIN_ID:
+            return
+        await query.edit_message_text("⏳ Rendering Lenskart Exact Replica Tax Invoice...")
+        img, data_summary = await asyncio.to_thread(generate_lenskart_exact_replica_invoice)
+        buf = io.BytesIO()
+        img.save(buf, format="PNG", optimize=True)
+        buf.seek(0)
+        await context.bot.send_photo(
+            chat_id=chat_id,
+            photo=buf,
+            caption=f"👓 **Lenskart Premium Exact Replica Tax Invoice**\n\n🏬 **Supplier**: {data_summary['store_name']}\n📍 **Address**: {data_summary['store_addr']}\n💰 **Total**: `₹ {data_summary['total']:.2f}`\n\n👑 *Admin Exclusive Premium Replica*",
+            parse_mode="Markdown"
+        )
         return
 
     # --- Gamification: Lucky Spin Wheel Action ---
