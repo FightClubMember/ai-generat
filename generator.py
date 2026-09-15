@@ -91,7 +91,10 @@ def get_asset_image(filename):
         try:
             return Image.open(path).convert("RGBA")
         except Exception:
-            pass
+            try:
+                return Image.open(path).convert("RGB")
+            except Exception:
+                pass
     return None
 
 # ─── Standard Store Pools for Free Users ───
@@ -556,7 +559,6 @@ def generate_bigbasket_exact_replica_invoice(custom_address=None, custom_name=No
     d = datetime.now() - timedelta(days=random.randint(0, 10))
     inv_date = d.strftime("%Y-%m-%d")
     ord_num = f"EXN-{random.randint(1000000, 9999999)}-{d.strftime('%Y%m%d')}"
-    slot_str = f"{d.strftime('%a %d %b %Y')} between 10:00 AM and 11:00 AM"
     
     font_reg = get_font(9 * scale, bold=False)
     font_bold = get_font(9 * scale, bold=True)
@@ -569,21 +571,20 @@ def generate_bigbasket_exact_replica_invoice(custom_address=None, custom_name=No
     draw.rectangle([0, 0, width, 30 * scale], fill=red_bg)
     draw.text((width // 2 - (70 * scale), 8 * scale), "Original  Tax  Invoice", font=font_large_bold, fill=(255, 255, 255))
     
-    # 2. Paste Real BigBasket Logo
-    logo_img = get_asset_image("bb_logo_real.png")
+    # 2. Paste Real BigBasket Logo (bb_logo_exact.png extracted directly from PDF xref 9)
+    logo_img = get_asset_image("bb_logo_exact.png")
     if logo_img:
         logo_w, logo_h = logo_img.size
-        target_w = int(140 * scale)
+        target_w = int(120 * scale)
         target_h = int(logo_h * (target_w / logo_w))
         logo_resized = logo_img.resize((target_w, target_h), Image.Resampling.LANCZOS)
-        canvas.paste(logo_resized, (35 * scale, 35 * scale), logo_resized)
+        canvas.paste(logo_resized, (35 * scale, 35 * scale))
     else:
         draw.text((35 * scale, 38 * scale), "bb", font=get_font(18 * scale, bold=True), fill=(110, 180, 40))
         draw.text((70 * scale, 42 * scale), "bigbasket", font=font_large_bold, fill=(20, 20, 20))
         draw.text((70 * scale, 58 * scale), "A TATA Enterprise", font=font_small_bold, fill=(0, 70, 150))
         
     # 3. Top Info Grid Boxes (Exact PDF Lines & Coordinates)
-    # Outer Frame Grid Box
     grid_top = 80 * scale
     grid_bottom = 260 * scale
     draw.rectangle([35 * scale, grid_top, 815 * scale, grid_bottom], outline=(200, 200, 200), width=scale)
@@ -714,14 +715,14 @@ def generate_bigbasket_exact_replica_invoice(custom_address=None, custom_name=No
     draw.text((410 * scale, y_sum + (85 * scale)), "Total Invoice Value:", font=font_bold, fill=(195, 25, 30))
     draw.text((680 * scale, y_sum + (85 * scale)), f"Rs. {subtotal_val:.2f}", font=font_bold, fill=(195, 25, 30))
     
-    # 6. Paste Real Signature
-    sig_img = get_asset_image("bb_signature_real.png")
+    # 6. Paste Real Signature (bb_signature_exact.jpeg extracted directly from PDF xref 11)
+    sig_img = get_asset_image("bb_signature_exact.jpeg")
     if sig_img:
         sig_w, sig_h = sig_img.size
         target_w = int(220 * scale)
         target_h = int(sig_h * (target_w / sig_w))
         sig_resized = sig_img.resize((target_w, target_h), Image.Resampling.LANCZOS)
-        canvas.paste(sig_resized, (560 * scale, y_sum + (150 * scale)), sig_resized)
+        canvas.paste(sig_resized, (560 * scale, y_sum + (150 * scale)))
     else:
         draw.text((570 * scale, y_sum + (180 * scale)), "Authorized Signatory", font=font_bold, fill=(60, 60, 60))
         
@@ -748,7 +749,7 @@ def generate_lenskart_exact_replica_invoice(custom_address=None, custom_name=Non
     """
     Renders a 100% EXACT visual replica of Lenskart Tax Invoice PDF (Invoice_1348995593 (1).pdf)
     matching exact column structure, header grid, barcodes, customer address boxes, disclaimers,
-    extracted logo, and exact extracted blue ink signature.
+    extracted logo (xref 6), and exact extracted blue ink signature (xref 4).
     """
     scale = 3 # 3X High DPI for 100% vector-crisp match (2550x3300 resolution)
     width = 850 * scale
@@ -788,13 +789,13 @@ def generate_lenskart_exact_replica_invoice(custom_address=None, custom_name=Non
     draw.text((40 * scale, 180 * scale), f"Invoice:# {inv_no}", font=font_reg, fill=(0, 0, 0))
     draw.text((40 * scale, 196 * scale), "Invoice Date: 21/08/2026", font=font_reg, fill=(0, 0, 0))
     
-    # Middle Column Header (Lenskart Details + Paste Real Header Logo)
+    # Middle Column Header (Lenskart Details + Paste Real Extracted Logo xref 6)
     draw.line([(240 * scale, 65 * scale), (240 * scale, 230 * scale)], fill=(0, 0, 0), width=2*scale)
     
-    logo_hdr = get_asset_image("lk_header_logo.png")
+    logo_hdr = get_asset_image("lk_logo_exact.png")
     if logo_hdr:
         lw, lh = logo_hdr.size
-        tw = int(180 * scale)
+        tw = int(80 * scale)
         th = int(lh * (tw / lw))
         logo_resized = logo_hdr.resize((tw, th), Image.Resampling.LANCZOS)
         canvas.paste(logo_resized, (250 * scale, 70 * scale), logo_resized)
@@ -872,7 +873,7 @@ def generate_lenskart_exact_replica_invoice(custom_address=None, custom_name=Non
     
     draw.line([(30 * scale, 480 * scale), (width - (30 * scale), 480 * scale)], fill=(0, 0, 0), width=2*scale)
     
-    # 5. Bottom Grid: Scannable QR Code + Totals + Disclaimers + Paste Real Signature
+    # 5. Bottom Grid: Scannable QR Code + Totals + Disclaimers + Paste Real Signature (lk_signature_exact.png extracted from xref 4)
     draw_qr_code(canvas, 140 * scale, 500 * scale, size=85 * scale, data_str=f"https://www.lenskart.com/taxinvoice/verify/{order_id}")
     
     draw.text((360 * scale, 495 * scale), "Total Taxable Amount :", font=font_reg, fill=(0, 0, 0))
@@ -896,10 +897,10 @@ def generate_lenskart_exact_replica_invoice(custom_address=None, custom_name=Non
     draw.text((40 * scale, 694 * scale), "4. The information provided in the invoice is true and correct", font=font_small, fill=(50, 50, 50))
     
     # Paste Real Signature Image
-    sig_img = get_asset_image("lk_signature_real.png")
+    sig_img = get_asset_image("lk_signature_exact.png")
     if sig_img:
         sw, sh = sig_img.size
-        tw = int(220 * scale)
+        tw = int(180 * scale)
         th = int(sh * (tw / sw))
         sig_resized = sig_img.resize((tw, th), Image.Resampling.LANCZOS)
         canvas.paste(sig_resized, (560 * scale, 620 * scale), sig_resized)
