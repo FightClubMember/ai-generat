@@ -46,7 +46,7 @@ def get_font(size, bold=False):
             pass
     return ImageFont.load_default()
 
-# ─── Dynamic Restaurant Pools with Formats & Menus ───
+# ─── Dynamic Restaurant & Retail Brand Pools (Real Locations) ───
 
 STORES_POOL = [
     {
@@ -177,10 +177,120 @@ STORES_POOL = [
         ]
     },
     {
+        "name": "BLINKIT (GROFERS INDIA)",
+        "subtitle": "(10-MINUTE QUICK COMMERCE)",
+        "address": "Dark Store Hub #402, DLF Phase 3",
+        "city": "Gurugram, Haryana, India",
+        "tel": "0124-4556677",
+        "gstin": "06AAACG9988F1Z1",
+        "separator": "-",
+        "has_gst": True,
+        "tax_rate": 0.05,
+        "footer": "BLINKIT - DELIVERED IN 10 MINS!",
+        "layout_type": "grid",
+        "items": [
+            ("Amul Butter 500g", 275.00),
+            ("Amul Taaza Milk 1L", 74.00),
+            ("Harvest Bread 400g", 50.00),
+            ("Maggi Noodle 4-Pk", 56.00),
+            ("Fresh Banana 1kg", 65.00),
+            ("Mother Dairy Curd", 45.00),
+            ("Delivery Charge", 25.00),
+            ("Handling Fee", 5.00)
+        ]
+    },
+    {
+        "name": "TATA BIGBASKET",
+        "subtitle": "(TATA ENTERPRISE E-GROCERY)",
+        "address": "Hub 18, Whitefield Main Road",
+        "city": "Bengaluru, Karnataka, India",
+        "tel": "080-68688000",
+        "gstin": "29AAACB8899K1Z2",
+        "separator": "=",
+        "has_gst": True,
+        "tax_rate": 0.05,
+        "footer": "THANK YOU FOR SHOPPING AT BIGBASKET",
+        "layout_type": "grid",
+        "items": [
+            ("Aashirvaad Atta 5kg", 265.00),
+            ("Fortune Mustard Oil", 160.00),
+            ("Tata Salt Lite 1kg", 32.00),
+            ("Surf Excel Easy Wash", 145.00),
+            ("Fortune Basmati Rice", 380.00),
+            ("BB Royal Toor Dal 1k", 175.00),
+            ("Everest Garam Masala", 82.00)
+        ]
+    },
+    {
+        "name": "LENSKART SOLUTIONS",
+        "subtitle": "(EYEWEAR & OPTICAL RETAIL)",
+        "address": "Shop G-14, Inner Circle, Connaught Place",
+        "city": "New Delhi, India",
+        "tel": "011-43228800",
+        "gstin": "07AABCL5544E1Z9",
+        "separator": "-",
+        "has_gst": True,
+        "tax_rate": 0.12,  # 12% Eyewear Tax Rate
+        "footer": "LOG ON TO LENSKART.COM FOR MORE",
+        "layout_type": "grid",
+        "items": [
+            ("VC Air Flex Frame", 1500.00),
+            ("Anti-Glare Blue Lens", 1200.00),
+            ("Lens Cleaning Spray", 150.00),
+            ("Microfiber Cloth", 50.00),
+            ("Computer Glasses", 999.00),
+            ("Contact Lens Soln", 350.00)
+        ]
+    },
+    {
+        "name": "ZEPTO QUICK COMMERCE",
+        "subtitle": "(10-MIN EXPRESS GROCERY)",
+        "address": "FC 12, HSR Layout, Sector 3",
+        "city": "Bengaluru, Karnataka, India",
+        "tel": "080-45689900",
+        "gstin": "29AAACK7711Q1Z4",
+        "separator": ".",
+        "has_gst": True,
+        "tax_rate": 0.05,
+        "footer": "ZEPTO - DELIVERED IN 10 MINS!",
+        "layout_type": "lines",
+        "items": [
+            ("Epigamia Mango Yogurt", 60.00),
+            ("Coca Cola Zero Can", 40.00),
+            ("Lay's Magic Masala", 20.00),
+            ("Red Bull Energy Drink", 125.00),
+            ("Safal Frozen Peas 500g", 95.00),
+            ("Doritos Cheese Nachos", 50.00),
+            ("Small Bag Charge", 12.00)
+        ]
+    },
+    {
+        "name": "RELIANCE SMART BAZAAR",
+        "subtitle": "(RELIANCE RETAIL LIMITED)",
+        "address": "Infinity Mall, Link Road, Malad West",
+        "city": "Mumbai, Maharashtra, India",
+        "tel": "022-40012233",
+        "gstin": "27AABCR6611M1Z3",
+        "separator": "=",
+        "has_gst": True,
+        "tax_rate": 0.05,
+        "footer": "RELIANCE RETAIL - ALWAYS SAVE MORE",
+        "layout_type": "grid",
+        "items": [
+            ("Good Life Sugar 1kg", 48.00),
+            ("Dairy Milk Silk 150g", 175.00),
+            ("Tropicana Juice 1L", 110.00),
+            ("Britannia Good Day", 30.00),
+            ("Tata Tea Gold 500g", 320.00),
+            ("Dettol Handwash Refill", 99.00),
+            ("Parle-G Gold Biscuit", 25.00)
+        ]
+    },
+    {
         "name": "PUNJABI DHABA & RESTAURANT",
         "subtitle": "(AUTHENTIC NORTH INDIAN)",
         "address": "NH-44 Highway, bypass road",
-        "city": "Panipat, Haryana",
+        "city": "Panipat, Haryana, India",
         "tel": "0180-2566778",
         "gstin": "",  # Local dhaba, no GSTIN
         "separator": "*",
@@ -205,7 +315,7 @@ STORES_POOL = [
         "name": "JOHNY HOT DOG",
         "subtitle": "(INDORE'S MASHHOOR FAST FOOD)",
         "address": "Chappan Dukan, New Palasia",
-        "city": "Indore, India",
+        "city": "Indore, Madhya Pradesh, India",
         "tel": "0731-2522110",
         "gstin": "",
         "separator": "-",
@@ -228,7 +338,7 @@ STORES_POOL = [
         "name": "BOMBAY SWEETS & BAKERY",
         "subtitle": "(SWEETS, NAMKEEN & BAKERY)",
         "address": "Opp. Railway Station, Dadar East",
-        "city": "Mumbai, India",
+        "city": "Mumbai, Maharashtra, India",
         "tel": "022-24118833",
         "gstin": "27BOMSW9912A1Z4",
         "separator": "*",
@@ -252,7 +362,7 @@ STORES_POOL = [
         "name": "THE PIZZA CORNER",
         "subtitle": "(ITALIAN WOODFIRED PIZZAS)",
         "address": "G-10, Galleria Mall, Hiranandani",
-        "city": "Powai, Mumbai",
+        "city": "Powai, Mumbai, India",
         "tel": "022-25701100",
         "gstin": "27PZCNR7789M1Z8",
         "separator": "=",
@@ -424,9 +534,9 @@ def draw_receipt_canvas(data, text_color):
         lines.append((f"{left_2:<21}{right_2}", False, False, False))
         lines.append((f"{left_3:<21}{right_3}", False, False, False))
     else:
-        # Line-by-line metadata (typical for dhabas/cafes)
+        # Line-by-line metadata (typical for dhabas/cafes/express stores)
         lines.append((f"Date: {date_part}   Time: {time_part}", False, False, False))
-        lines.append((f"Bill No: #{receipt_no}     Table: {table_no}", False, False, False))
+        lines.append((f"Bill No: #{receipt_no}     Hub/Counter: {table_no}", False, False, False))
         lines.append((f"Cashier: {server_name}", False, False, False))
     
     lines.append((separator_line, False, False, False))
@@ -528,7 +638,7 @@ def draw_receipt_canvas(data, text_color):
 
 def generate_receipt_image(*args, **kwargs):
     """
-    Main API to generate a restaurant bill image matching the reference image.
+    Main API to generate a restaurant/retail bill image matching the reference image.
     Outputs the receipt in full edge-to-edge 3:4 aspect ratio with the striped texture.
     """
     text_color = (15, 15, 15)   # Charcoal print ink
