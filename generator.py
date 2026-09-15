@@ -38,7 +38,6 @@ def download_fonts():
             except Exception as e:
                 print(f"Failed to download font {path}: {e}")
 
-# Initial download attempt
 download_fonts()
 
 def get_font(size, bold=False):
@@ -50,7 +49,7 @@ def get_font(size, bold=False):
             pass
     return ImageFont.load_default()
 
-# ─── Ultra High-Definition Barcode & Real Scannable QR Code Helpers ───
+# ─── Barcode & Real Scannable QR Code Helpers ───
 
 def draw_barcode(draw, x, y, width=280, height=50, seed_val=None):
     """Renders crisp vertical barcode lines (High DPI)."""
@@ -82,58 +81,20 @@ def draw_qr_code(canvas, x, y, size=140, data_str=None):
         draw = ImageDraw.Draw(canvas)
         draw.rectangle([x, y, x + size, y + size], fill=(255, 255, 255), outline=(0, 0, 0), width=3)
 
-# ─── Exact Sample Signatures (Copied from Sample PDFs) ───
+# ─── Load Real Extracted Sample Assets ───
 
-def draw_bigbasket_signature(draw, x=540, y=650, scale=2):
-    """Renders the exact blue ink signature from Invoice_from_bb_2100479625.pdf."""
-    x = int(x)
-    y = int(y)
-    color = (15, 35, 145) # Deep navy blue ink
-    w = 3
-    
-    # Capital loop (D / T)
-    stroke1 = [
-        (x, y + 35), (x + 8, y + 8), (x + 28, y), (x + 42, y + 18),
-        (x + 25, y + 45), (x + 8, y + 50), (x + 35, y + 28)
-    ]
-    draw.line(stroke1, fill=color, width=w)
-    
-    # Cursive flow (inPavan)
-    stroke2 = [
-        (x + 35, y + 28), (x + 50, y + 18), (x + 60, y + 32), (x + 72, y + 20),
-        (x + 82, y + 30), (x + 95, y + 15), (x + 110, y + 35), (x + 130, y + 12),
-        (x + 155, y + 28)
-    ]
-    draw.line(stroke2, fill=color, width=w)
-    
-    # Underline sweep
-    stroke3 = [
-        (x + 15, y + 52), (x + 65, y + 46), (x + 135, y + 42), (x + 175, y + 38)
-    ]
-    draw.line(stroke3, fill=color, width=w)
+ASSETS_DIR = "assets"
 
-def draw_lenskart_signature(draw, x=540, y=650, scale=2):
-    """Renders the exact blue ink signature from Invoice_1348995593.pdf."""
-    x = int(x)
-    y = int(y)
-    color = (12, 30, 130) # Dark navy blue ink
-    w = 3
-    
-    # Capital A loop
-    stroke1 = [
-        (x + 25, y + 40), (x + 12, y + 18), (x + 35, y + 6), (x + 50, y + 28),
-        (x + 25, y + 24), (x + 60, y + 16)
-    ]
-    draw.line(stroke1, fill=color, width=w)
-    
-    # Cursive flow & tail loop
-    stroke2 = [
-        (x + 60, y + 16), (x + 75, y + 32), (x + 92, y + 14), (x + 110, y + 30),
-        (x + 130, y + 10), (x + 155, y + 25), (x + 180, y + 18)
-    ]
-    draw.line(stroke2, fill=color, width=w)
+def get_asset_image(filename):
+    path = os.path.join(ASSETS_DIR, filename)
+    if os.path.exists(path):
+        try:
+            return Image.open(path).convert("RGBA")
+        except Exception:
+            pass
+    return None
 
-# ─── Standard Store Pools ───
+# ─── Standard Store Pools for Free Users ───
 
 STORES_POOL = [
     {
@@ -380,7 +341,7 @@ def draw_receipt_canvas(data, text_color):
         
     return canvas
 
-# ─── 👑 ADMIN ULTRA HIGH-DEF EXACT REPLICAS (WITH CUSTOM ADDRESS SUPPORT) ───
+# ─── 👑 ADMIN 100% PERFECT EXACT SAMPLE REPLICAS ───
 
 KFC_MENU = [
     ("Indian Spicy Veg Rol", 213.50),
@@ -409,10 +370,10 @@ KFC_LOCATIONS = [
 
 def generate_kfc_exact_replica_receipt(custom_address=None, custom_name=None):
     """
-    Renders an ULTRA HD (2X High DPI) visual replica of the KFC thermal receipt (IMG_20260915_074530_315.jpg)
-    with dynamic data and optional custom admin address.
+    Renders a 100% EXACT visual replica of the KFC thermal receipt photo (IMG_20260915_074530_315.jpg)
+    matching font, alignment, spacing, token format, border margins, red side logos, and real QR code.
     """
-    scale = 2 # 2X High DPI supersampling
+    scale = 2
     width = 460 * scale
     
     if custom_address:
@@ -430,7 +391,6 @@ def generate_kfc_exact_replica_receipt(custom_address=None, custom_name=None):
     card_last4 = f"{random.randint(1000, 9999)}"
     card_brand = random.choice(["Plutus Card", "HDFC Card", "ICICI Card", "Axis Card", "Paytm Card"])
     
-    # Loop to ensure KFC total amount is ALWAYS > ₹500
     while True:
         selected_items = random.sample(KFC_MENU, random.randint(3, 5))
         item_rows = []
@@ -551,18 +511,18 @@ def generate_kfc_exact_replica_receipt(custom_address=None, custom_name=None):
     return canvas, data_summary
 
 BB_ITEMS_CATALOG = [
-    ("Sunfeast Dark Fantasy Bourbon 108g", "19053290", 90.00, 15.00),
-    ("Parle Happy Happy Choco Cookies 60g", "19053290", 60.00, 10.00),
-    ("Brooke Bond Taaza Tea Leaf 500g", "09024090", 240.00, 30.00),
-    ("Aashirvaad Shuddh Chakki Atta 10kg", "11010000", 485.00, 50.00),
-    ("Fortune Kachi Ghani Mustard Oil 5L", "15149010", 780.00, 65.00),
-    ("Tata Salt Lite Low Sodium 1kg", "25010010", 42.00, 5.00),
-    ("Surf Excel Easy Wash Detergent 3kg", "34022010", 435.00, 40.00),
-    ("Amul Pasteurised Butter 500g Pack", "04051000", 275.00, 15.00),
-    ("Maggi 2-Minute Masala 12-Pack", "19023010", 168.00, 18.00),
-    ("Good Life Pure Refined Sugar 5kg", "17019990", 240.00, 20.00),
-    ("Ferrero Rocher Chocolate 16 Pcs", "18069010", 899.00, 100.00),
-    ("Nestle Everyday Dairy Whitener 1kg", "04029110", 520.00, 45.00)
+    ("Sunfeast Dark Fantasy Bourbon 108g", "19053290", 30.00, 15.00, 15.08, 0.83, 15.08),
+    ("Parle Happy Happy Choco Cookies 60g", "19053290", 10.00, 0.00, 10.00, 0.48, 10.00),
+    ("Brooke Bond Taaza Tea Leaf 250g", "09024090", 60.00, 0.00, 60.00, 2.86, 60.00),
+    ("Aashirvaad Shuddh Chakki Atta 5kg", "11010000", 265.00, 20.00, 245.00, 11.67, 245.00),
+    ("Fortune Kachi Ghani Mustard Oil 1L", "15149010", 160.00, 15.00, 145.00, 6.90, 145.00),
+    ("Tata Salt Lite Low Sodium 1kg", "25010010", 32.00, 3.00, 29.00, 1.38, 29.00),
+    ("Surf Excel Easy Wash Detergent 1kg", "34022010", 145.00, 10.00, 135.00, 6.43, 135.00),
+    ("Amul Pasteurised Butter 500g Pack", "04051000", 275.00, 15.00, 260.00, 12.38, 260.00),
+    ("Maggi 2-Minute Masala 12-Pack", "19023010", 168.00, 18.00, 150.00, 7.14, 150.00),
+    ("Good Life Pure Refined Sugar 5kg", "17019990", 240.00, 20.00, 220.00, 10.48, 220.00),
+    ("Ferrero Rocher Chocolate 16 Pcs", "18069010", 899.00, 100.00, 799.00, 38.05, 799.00),
+    ("Nestle Everyday Dairy Whitener 1kg", "04029110", 520.00, 45.00, 475.00, 22.62, 475.00)
 ]
 
 CUSTOMER_POOL = [
@@ -576,12 +536,13 @@ CUSTOMER_POOL = [
 
 def generate_bigbasket_exact_replica_invoice(custom_address=None, custom_name=None):
     """
-    Renders an ULTRA HD (2X High DPI) visual replica of BigBasket Tax Invoice (Invoice_from_bb_2100479625.pdf)
-    with optional custom admin address and name.
+    Renders a 100% EXACT visual replica of BigBasket Tax Invoice PDF (Invoice_from_bb_2100479625.pdf)
+    matching exact column structure, fonts, top banner, supplier/customer grid, exact table headers,
+    extracted logo, and exact blue ink signature.
     """
-    scale = 2
-    width = 800 * scale
-    height = 1080 * scale
+    scale = 3 # 3X High DPI for 100% vector-crisp match (2550x3300 resolution)
+    width = 850 * scale
+    height = 1100 * scale
     canvas = Image.new("RGB", (width, height), (255, 255, 255))
     draw = ImageDraw.Draw(canvas)
     
@@ -595,130 +556,176 @@ def generate_bigbasket_exact_replica_invoice(custom_address=None, custom_name=No
     d = datetime.now() - timedelta(days=random.randint(0, 10))
     inv_date = d.strftime("%Y-%m-%d")
     ord_num = f"EXN-{random.randint(1000000, 9999999)}-{d.strftime('%Y%m%d')}"
+    slot_str = f"{d.strftime('%a %d %b %Y')} between 10:00 AM and 11:00 AM"
     
-    # 1. Red Header Banner
+    font_reg = get_font(9 * scale, bold=False)
+    font_bold = get_font(9 * scale, bold=True)
+    font_small = get_font(8 * scale, bold=False)
+    font_small_bold = get_font(8 * scale, bold=True)
+    font_large_bold = get_font(14 * scale, bold=True)
+    
+    # 1. Red Header Banner (Exact PDF Top Bar)
     red_bg = (195, 25, 30)
-    draw.rectangle([20 * scale, 20 * scale, width - (20 * scale), 55 * scale], fill=red_bg)
-    font_banner = get_font(16 * scale, bold=True)
-    draw.text((width // 2 - (100 * scale), 26 * scale), "Original   Tax   Invoice", font=font_banner, fill=(255, 255, 255))
+    draw.rectangle([0, 0, width, 30 * scale], fill=red_bg)
+    draw.text((width // 2 - (70 * scale), 8 * scale), "Original  Tax  Invoice", font=font_large_bold, fill=(255, 255, 255))
     
-    font_reg = get_font(11 * scale, bold=False)
-    font_bold = get_font(11 * scale, bold=True)
-    font_large = get_font(18 * scale, bold=True)
+    # 2. Paste Real BigBasket Logo
+    logo_img = get_asset_image("bb_logo_real.png")
+    if logo_img:
+        logo_w, logo_h = logo_img.size
+        target_w = int(140 * scale)
+        target_h = int(logo_h * (target_w / logo_w))
+        logo_resized = logo_img.resize((target_w, target_h), Image.Resampling.LANCZOS)
+        canvas.paste(logo_resized, (35 * scale, 35 * scale), logo_resized)
+    else:
+        draw.text((35 * scale, 38 * scale), "bb", font=get_font(18 * scale, bold=True), fill=(110, 180, 40))
+        draw.text((70 * scale, 42 * scale), "bigbasket", font=font_large_bold, fill=(20, 20, 20))
+        draw.text((70 * scale, 58 * scale), "A TATA Enterprise", font=font_small_bold, fill=(0, 70, 150))
+        
+    # 3. Top Info Grid Boxes (Exact PDF Lines & Coordinates)
+    # Outer Frame Grid Box
+    grid_top = 80 * scale
+    grid_bottom = 260 * scale
+    draw.rectangle([35 * scale, grid_top, 815 * scale, grid_bottom], outline=(200, 200, 200), width=scale)
+    draw.line([(310 * scale, grid_top), (310 * scale, grid_bottom)], fill=(200, 200, 200), width=scale)
+    draw.line([(550 * scale, grid_top), (550 * scale, grid_bottom)], fill=(200, 200, 200), width=scale)
     
-    # 2. BigBasket Branding Logo
-    draw.text((35 * scale, 75 * scale), "bb", font=font_large, fill=(110, 180, 40))
-    draw.text((65 * scale, 78 * scale), "bigbasket", font=font_bold, fill=(20, 20, 20))
-    draw.text((65 * scale, 95 * scale), "A TATA Enterprise", font=get_font(10 * scale, bold=True), fill=(0, 70, 150))
+    # Column 1: Supplier Info
+    draw.text((45 * scale, 90 * scale), "Details of Supplier", font=font_bold, fill=(30, 30, 30))
+    draw.text((45 * scale, 110 * scale), "Innovative Retail Concepts Pvt Ltd, Khata No 97-1,", font=font_reg, fill=(30, 30, 30))
+    draw.text((45 * scale, 126 * scale), "Vill-Dundahera, Sector 22, Gurgaon, 122016", font=font_reg, fill=(30, 30, 30))
+    draw.text((45 * scale, 142 * scale), "Tel: 18601231000", font=font_reg, fill=(30, 30, 30))
+    draw.text((45 * scale, 158 * scale), "GSTIN: 06AACCI2053A1ZB", font=font_bold, fill=(30, 30, 30))
+    draw.text((45 * scale, 174 * scale), "CIN: U74130KA2010PTC052192", font=font_reg, fill=(30, 30, 30))
+    draw.text((45 * scale, 190 * scale), "FSSAI Lic No: 10824005001463", font=font_reg, fill=(30, 30, 30))
     
-    # 3. Grid Boxes Top
-    draw.rectangle([35 * scale, 120 * scale, 310 * scale, 260 * scale], fill=(248, 248, 248), outline=(220, 220, 220))
-    draw.text((45 * scale, 130 * scale), "Details of Supplier", font=font_bold, fill=(80, 80, 80))
-    draw.text((45 * scale, 150 * scale), "Innovative Retail Concepts Pvt Ltd, Khata No 97-1,", font=font_reg, fill=(30, 30, 30))
-    draw.text((45 * scale, 168 * scale), "Vill-Dundahera, Sector 22, Gurgaon, 122016", font=font_reg, fill=(30, 30, 30))
-    draw.text((45 * scale, 186 * scale), "Tel: 18601231000", font=font_reg, fill=(30, 30, 30))
-    draw.text((45 * scale, 204 * scale), "GSTIN: 06AACCI2053A1ZB", font=font_bold, fill=(30, 30, 30))
-    draw.text((45 * scale, 222 * scale), "CIN: U74130KA2010PTC052192", font=font_reg, fill=(30, 30, 30))
-    draw.text((45 * scale, 240 * scale), "FSSAI Lic No: 10824005001463", font=font_reg, fill=(30, 30, 30))
+    # Column 2: Bill to / Ship to
+    draw.text((320 * scale, 90 * scale), "Bill to/Ship to:", font=font_bold, fill=(30, 30, 30))
+    draw.text((320 * scale, 110 * scale), cust[0], font=font_bold, fill=(30, 30, 30))
     
-    # Customer Info Box
-    draw.rectangle([320 * scale, 120 * scale, 550 * scale, 260 * scale], fill=(255, 255, 255), outline=(220, 220, 220))
-    draw.text((330 * scale, 130 * scale), "Bill to / Ship to:", font=font_bold, fill=(80, 80, 80))
-    draw.text((330 * scale, 155 * scale), cust[0], font=font_bold, fill=(30, 30, 30))
+    addr1 = cust[1][:34] if len(cust[1]) > 34 else cust[1]
+    addr2 = cust[1][34:68] if len(cust[1]) > 34 else ""
+    draw.text((320 * scale, 126 * scale), addr1, font=font_reg, fill=(30, 30, 30))
+    draw.text((320 * scale, 142 * scale), addr2, font=font_reg, fill=(30, 30, 30))
     
-    addr_line1 = cust[1][:32] if len(cust[1]) > 32 else cust[1]
-    addr_line2 = cust[1][32:64] if len(cust[1]) > 32 else ""
-    draw.text((330 * scale, 178 * scale), addr_line1, font=font_reg, fill=(30, 30, 30))
-    draw.text((330 * scale, 196 * scale), addr_line2, font=font_reg, fill=(30, 30, 30))
+    # Column 3: Invoice Info Table
+    draw.text((560 * scale, 90 * scale), f"Invoice Number", font=font_reg, fill=(80, 80, 80))
+    draw.text((680 * scale, 90 * scale), f"{inv_num}", font=font_bold, fill=(30, 30, 30))
     
-    # Invoice Metadata Table
-    draw.rectangle([560 * scale, 120 * scale, 765 * scale, 260 * scale], fill=(255, 255, 255), outline=(200, 200, 200))
-    draw.text((570 * scale, 130 * scale), f"Invoice No: {inv_num}", font=font_reg, fill=(30, 30, 30))
-    draw.text((570 * scale, 150 * scale), f"Invoice Date: {inv_date}", font=font_reg, fill=(30, 30, 30))
-    draw.line([(560 * scale, 170 * scale), (765 * scale, 170 * scale)], fill=(220, 220, 220))
-    draw.text((570 * scale, 180 * scale), f"Order No: {ord_num[:22]}", font=font_reg, fill=(30, 30, 30))
-    draw.text((570 * scale, 200 * scale), "Payment Mode: Prepaid Wallet", font=font_reg, fill=(30, 30, 30))
-    draw.text((570 * scale, 220 * scale), "Payable Status: PAID", font=font_bold, fill=(40, 150, 40))
+    draw.text((560 * scale, 110 * scale), f"Invoice Date", font=font_reg, fill=(80, 80, 80))
+    draw.text((680 * scale, 110 * scale), f"{inv_date}", font=font_reg, fill=(30, 30, 30))
     
-    # 4. Item Table Grid Header
-    draw.rectangle([35 * scale, 280 * scale, 765 * scale, 310 * scale], fill=(235, 235, 235), outline=(180, 180, 180))
-    draw.text((45 * scale, 290 * scale), "SI. No", font=font_bold, fill=(20, 20, 20))
-    draw.text((100 * scale, 290 * scale), "Item Description", font=font_bold, fill=(20, 20, 20))
-    draw.text((320 * scale, 290 * scale), "HSN", font=font_bold, fill=(20, 20, 20))
-    draw.text((380 * scale, 290 * scale), "Qty", font=font_bold, fill=(20, 20, 20))
-    draw.text((430 * scale, 290 * scale), "Unit Price", font=font_bold, fill=(20, 20, 20))
-    draw.text((520 * scale, 290 * scale), "Gross Val", font=font_bold, fill=(20, 20, 20))
-    draw.text((610 * scale, 290 * scale), "IGST", font=font_bold, fill=(20, 20, 20))
-    draw.text((680 * scale, 290 * scale), "Total Value", font=font_bold, fill=(20, 20, 20))
+    draw.line([(550 * scale, 130 * scale), (815 * scale, 130 * scale)], fill=(220, 220, 220), width=1)
     
+    draw.text((560 * scale, 140 * scale), f"Order No", font=font_reg, fill=(80, 80, 80))
+    draw.text((680 * scale, 140 * scale), f"{ord_num[:20]}", font=font_reg, fill=(30, 30, 30))
+    
+    draw.text((560 * scale, 160 * scale), f"Payable Amount", font=font_reg, fill=(80, 80, 80))
+    draw.text((680 * scale, 160 * scale), f"Rs. 0.00", font=font_bold, fill=(30, 30, 30))
+    
+    draw.text((560 * scale, 180 * scale), f"Payment Mode", font=font_reg, fill=(80, 80, 80))
+    draw.text((680 * scale, 180 * scale), f"walletPrepaid", font=font_reg, fill=(30, 30, 30))
+    
+    draw.text((560 * scale, 200 * scale), f"Source", font=font_reg, fill=(80, 80, 80))
+    draw.text((680 * scale, 200 * scale), f"bb-b2c", font=font_reg, fill=(30, 30, 30))
+    
+    draw.text((560 * scale, 220 * scale), f"No. of Items", font=font_reg, fill=(80, 80, 80))
+    draw.text((680 * scale, 220 * scale), f"3", font=font_reg, fill=(30, 30, 30))
+    
+    # 4. Exact Table Grid Header (Matching Sample PDF 12 Columns)
+    tbl_top = 280 * scale
+    tbl_hdr_h = 28 * scale
+    draw.rectangle([35 * scale, tbl_top, 815 * scale, tbl_top + tbl_hdr_h], fill=(235, 235, 235), outline=(180, 180, 180))
+    
+    col_x = [38, 55, 180, 240, 275, 320, 370, 420, 475, 520, 600, 680, 750]
+    headers = [
+        "SI No.", "Item Description", "HSN Code", "Qty", "Unit Price",
+        "Unit Taxable", "Gross Val", "Discount", "Other Chg", "Taxable Val", "IGST Amt", "TOTAL"
+    ]
+    
+    for i, h in enumerate(headers):
+        draw.text((col_x[i] * scale, tbl_top + (6 * scale)), h, font=font_small_bold, fill=(20, 20, 20))
+        
     while True:
-        selected = random.sample(BB_ITEMS_CATALOG, random.randint(3, 5))
+        selected = random.sample(BB_ITEMS_CATALOG, 3)
         item_rows = []
         subtotal_val = 0.0
         total_savings = 0.0
-        for desc, hsn, u_price, disc in selected:
-            qty = random.choice([1, 2])
+        for desc, hsn, u_price, disc, taxable, tax_val, tot_val in selected:
+            qty = 1
             gross = u_price * qty
             tot = round(gross - disc, 2)
             subtotal_val += tot
             total_savings += disc
-            item_rows.append((desc, hsn, qty, u_price, gross, tot))
+            item_rows.append((desc, hsn, qty, u_price, taxable, gross, disc, tax_val, tot))
             
-        handling_fee = 12.00
+        handling_fee = 8.00
         subtotal_val += handling_fee
         if subtotal_val >= 600.0:
             break
 
-    y_table = 320 * scale
+    y_tbl = tbl_top + tbl_hdr_h
     sno = 1
-    for desc, hsn, qty, u_price, gross, tot in item_rows:
-        draw.text((50 * scale, y_table), str(sno), font=font_reg, fill=(30, 30, 30))
-        draw.text((100 * scale, y_table), desc[:32], font=font_reg, fill=(30, 30, 30))
-        draw.text((320 * scale, y_table), hsn, font=font_reg, fill=(30, 30, 30))
-        draw.text((380 * scale, y_table), str(qty), font=font_reg, fill=(30, 30, 30))
-        draw.text((430 * scale, y_table), f"{u_price:.2f}", font=font_reg, fill=(30, 30, 30))
-        draw.text((520 * scale, y_table), f"{gross:.2f}", font=font_reg, fill=(30, 30, 30))
-        draw.text((610 * scale, y_table), "5.00%", font=font_reg, fill=(30, 30, 30))
-        draw.text((680 * scale, y_table), f"{tot:.2f}", font=font_reg, fill=(30, 30, 30))
+    for desc, hsn, qty, u_price, taxable, gross, disc, tax_val, tot in item_rows:
+        draw.text((col_x[0] * scale, y_tbl + (8 * scale)), str(sno), font=font_small, fill=(30, 30, 30))
+        draw.text((col_x[1] * scale, y_tbl + (8 * scale)), desc[:24], font=font_small, fill=(30, 30, 30))
+        draw.text((col_x[2] * scale, y_tbl + (8 * scale)), hsn, font=font_small, fill=(30, 30, 30))
+        draw.text((col_x[3] * scale, y_tbl + (8 * scale)), str(qty), font=font_small, fill=(30, 30, 30))
+        draw.text((col_x[4] * scale, y_tbl + (8 * scale)), f"{u_price:.2f}", font=font_small, fill=(30, 30, 30))
+        draw.text((col_x[5] * scale, y_tbl + (8 * scale)), f"{taxable:.2f}", font=font_small, fill=(30, 30, 30))
+        draw.text((col_x[6] * scale, y_tbl + (8 * scale)), f"{gross:.2f}", font=font_small, fill=(30, 30, 30))
+        draw.text((col_x[7] * scale, y_tbl + (8 * scale)), f"{disc:.2f}", font=font_small, fill=(30, 30, 30))
+        draw.text((col_x[8] * scale, y_tbl + (8 * scale)), "0.00", font=font_small, fill=(30, 30, 30))
+        draw.text((col_x[9] * scale, y_tbl + (8 * scale)), f"{taxable:.2f}", font=font_small, fill=(30, 30, 30))
+        draw.text((col_x[10] * scale, y_tbl + (8 * scale)), "5.00%", font=font_small, fill=(30, 30, 30))
+        draw.text((col_x[11] * scale, y_tbl + (8 * scale)), f"{tot:.2f}", font=font_small, fill=(30, 30, 30))
         
-        y_table += 30 * scale
-        draw.line([(35 * scale, y_table), (765 * scale, y_table)], fill=(240, 240, 240))
+        y_tbl += 32 * scale
+        draw.line([(35 * scale, y_tbl), (815 * scale, y_tbl)], fill=(240, 240, 240))
         sno += 1
         
     # Handling charge row
-    draw.text((100 * scale, y_table + (10 * scale)), "Delivery & Handling Charge", font=font_reg, fill=(30, 30, 30))
-    draw.text((680 * scale, y_table + (10 * scale)), f"Rs.{handling_fee:.2f}", font=font_reg, fill=(30, 30, 30))
+    draw.text((col_x[1] * scale, y_tbl + (8 * scale)), "Handling Charge", font=font_small, fill=(30, 30, 30))
+    draw.text((col_x[11] * scale, y_tbl + (8 * scale)), f"Rs.{handling_fee:.2f}", font=font_small, fill=(30, 30, 30))
+    y_tbl += 32 * scale
     
-    # 5. GST Summary & Total Box (100% Clear and Visible Layout)
-    y_sum = max(y_table + (50 * scale), 530 * scale)
-    draw.rectangle([35 * scale, y_sum, 370 * scale, y_sum + (105 * scale)], fill=(255, 255, 255), outline=(200, 200, 200))
-    draw.text((45 * scale, y_sum + (10 * scale)), "GST Information Summary", font=font_bold, fill=(30, 30, 30))
-    draw.text((45 * scale, y_sum + (32 * scale)), "Applicable IGST Rate: 5.00%", font=font_reg, fill=(30, 30, 30))
-    draw.text((45 * scale, y_sum + (54 * scale)), f"Total Taxable Value: Rs. {subtotal_val*0.95:.2f}", font=font_reg, fill=(30, 30, 30))
-    draw.text((45 * scale, y_sum + (76 * scale)), f"Total Tax Amount: Rs. {subtotal_val*0.05:.2f}", font=font_reg, fill=(30, 30, 30))
+    # 5. GST Summary & Right Summary Boxes (Exact Sample Match)
+    y_sum = y_tbl + (20 * scale)
+    draw.rectangle([35 * scale, y_sum, 380 * scale, y_sum + (110 * scale)], fill=(255, 255, 255), outline=(200, 200, 200))
+    draw.text((45 * scale, y_sum + (10 * scale)), "GST Information", font=font_bold, fill=(30, 30, 30))
+    draw.text((45 * scale, y_sum + (30 * scale)), "IGST Rate: 5.00%", font=font_reg, fill=(30, 30, 30))
+    draw.text((45 * scale, y_sum + (50 * scale)), f"Taxable Value: Rs. {subtotal_val*0.95:.2f}", font=font_reg, fill=(30, 30, 30))
+    draw.text((45 * scale, y_sum + (70 * scale)), f"Tax Value: Rs. {subtotal_val*0.05:.2f}", font=font_reg, fill=(30, 30, 30))
     
-    # Real Scannable QR Code in Left Box
-    draw_qr_code(canvas, 290 * scale, y_sum + (10 * scale), size=75 * scale, data_str=f"https://www.bigbasket.com/invoice/verify/{inv_num}")
+    # QR Code inside GST Box
+    draw_qr_code(canvas, 290 * scale, y_sum + (10 * scale), size=80 * scale, data_str=f"https://www.bigbasket.com/invoice/verify/{inv_num}")
     
-    # Total Box Right (Proper alignment so Total is 100% visible)
-    draw.rectangle([385 * scale, y_sum, 765 * scale, y_sum + (105 * scale)], fill=(250, 250, 250), outline=(190, 190, 190))
+    # Summary Box Right
+    draw.rectangle([400 * scale, y_sum, 815 * scale, y_sum + (140 * scale)], fill=(250, 250, 250), outline=(190, 190, 190))
+    draw.text((410 * scale, y_sum + (10 * scale)), "Sub Total:", font=font_bold, fill=(30, 30, 30))
+    draw.text((680 * scale, y_sum + (10 * scale)), f"Rs. {subtotal_val:.2f}", font=font_bold, fill=(30, 30, 30))
     
-    draw.text((400 * scale, y_sum + (10 * scale)), "Sub Total Amount:", font=font_bold, fill=(30, 30, 30))
-    draw.text((630 * scale, y_sum + (10 * scale)), f"Rs. {subtotal_val:.2f}", font=font_bold, fill=(30, 30, 30))
+    draw.text((410 * scale, y_sum + (35 * scale)), "Debit availed from Wallet:", font=font_reg, fill=(60, 60, 60))
+    draw.text((680 * scale, y_sum + (35 * scale)), f"Rs. {subtotal_val:.2f}", font=font_reg, fill=(60, 60, 60))
     
-    draw.text((400 * scale, y_sum + (32 * scale)), "Total Savings Discount:", font=font_bold, fill=(40, 150, 40))
-    draw.text((630 * scale, y_sum + (32 * scale)), f"Rs. {total_savings:.2f}", font=font_bold, fill=(40, 150, 40))
+    draw.text((410 * scale, y_sum + (60 * scale)), "You Saved:", font=font_bold, fill=(40, 150, 40))
+    draw.text((680 * scale, y_sum + (60 * scale)), f"Rs. {total_savings:.2f}", font=font_bold, fill=(40, 150, 40))
     
-    draw.text((400 * scale, y_sum + (54 * scale)), "Payment Mode Debit:", font=font_reg, fill=(60, 60, 60))
-    draw.text((630 * scale, y_sum + (54 * scale)), f"Rs. {subtotal_val:.2f}", font=font_reg, fill=(60, 60, 60))
+    draw.text((410 * scale, y_sum + (85 * scale)), "Total Invoice Value:", font=font_bold, fill=(195, 25, 30))
+    draw.text((680 * scale, y_sum + (85 * scale)), f"Rs. {subtotal_val:.2f}", font=font_bold, fill=(195, 25, 30))
     
-    font_total_bold = get_font(13 * scale, bold=True)
-    draw.text((400 * scale, y_sum + (78 * scale)), "NET BILL TOTAL:", font=font_total_bold, fill=(195, 25, 30))
-    draw.text((630 * scale, y_sum + (78 * scale)), f"Rs. {subtotal_val:.2f}", font=font_total_bold, fill=(195, 25, 30))
-    
-    # Render Exact Copied Blue Ink Signature from Sample PDF
-    draw_bigbasket_signature(draw, x=540 * scale, y=y_sum + (130 * scale), scale=scale)
-    draw.text((545 * scale, y_sum + (190 * scale)), "Authorized Signatory", font=font_bold, fill=(60, 60, 60))
+    # 6. Paste Real Signature
+    sig_img = get_asset_image("bb_signature_real.png")
+    if sig_img:
+        sig_w, sig_h = sig_img.size
+        target_w = int(220 * scale)
+        target_h = int(sig_h * (target_w / sig_w))
+        sig_resized = sig_img.resize((target_w, target_h), Image.Resampling.LANCZOS)
+        canvas.paste(sig_resized, (560 * scale, y_sum + (150 * scale)), sig_resized)
+    else:
+        draw.text((570 * scale, y_sum + (180 * scale)), "Authorized Signatory", font=font_bold, fill=(60, 60, 60))
+        
+    draw.text((565 * scale, y_sum + (250 * scale)), "Authorized Signatory", font=font_bold, fill=(60, 60, 60))
     
     data_summary = {
         "store_name": "BIGBASKET (A TATA Enterprise)",
@@ -739,12 +746,13 @@ LK_ITEMS_CATALOG = [
 
 def generate_lenskart_exact_replica_invoice(custom_address=None, custom_name=None):
     """
-    Renders an ULTRA HD (2X High DPI) visual replica of Lenskart Tax Invoice (Invoice_1348995593.pdf)
-    with optional custom admin address and name.
+    Renders a 100% EXACT visual replica of Lenskart Tax Invoice PDF (Invoice_1348995593 (1).pdf)
+    matching exact column structure, header grid, barcodes, customer address boxes, disclaimers,
+    extracted logo, and exact extracted blue ink signature.
     """
-    scale = 2
-    width = 800 * scale
-    height = 1080 * scale
+    scale = 3 # 3X High DPI for 100% vector-crisp match (2550x3300 resolution)
+    width = 850 * scale
+    height = 1100 * scale
     canvas = Image.new("RGB", (width, height), (255, 255, 255))
     draw = ImageDraw.Draw(canvas)
     
@@ -758,71 +766,76 @@ def generate_lenskart_exact_replica_invoice(custom_address=None, custom_name=Non
     order_id = f"1348995{''.join(random.choices(string.digits, k=3))}"
     inv_no = f"IIN10826B{''.join(random.choices(string.digits, k=6))}"
     
-    font_reg = get_font(11 * scale, bold=False)
-    font_bold = get_font(11 * scale, bold=True)
-    font_large = get_font(16 * scale, bold=True)
+    font_reg = get_font(9 * scale, bold=False)
+    font_bold = get_font(9 * scale, bold=True)
+    font_small = get_font(8 * scale, bold=False)
+    font_large = get_font(14 * scale, bold=True)
     
     # Outer Border Box
-    draw.rectangle([30 * scale, 30 * scale, width - (30 * scale), height - (30 * scale)], outline=(0, 0, 0), width=2)
+    draw.rectangle([30 * scale, 30 * scale, width - (30 * scale), height - (30 * scale)], outline=(0, 0, 0), width=2*scale)
     
-    # 1. Top Header Box
+    # 1. Top Title Banner
     draw.text((width // 2 - (40 * scale), 40 * scale), "Tax Invoice", font=font_large, fill=(0, 0, 0))
-    draw.line([(30 * scale, 65 * scale), (width - (30 * scale), 65 * scale)], fill=(0, 0, 0), width=2)
+    draw.line([(30 * scale, 65 * scale), (width - (30 * scale), 65 * scale)], fill=(0, 0, 0), width=2*scale)
     
+    # 2. Header Grid 3 Columns (Matching Sample PDF)
     # Left Column Header
-    draw.text((40 * scale, 75 * scale), f"Shipment Code : # {shipment_code[:18]}", font=font_reg, fill=(0, 0, 0))
-    draw.text((40 * scale, 95 * scale), f"Order : # {order_id}", font=font_bold, fill=(0, 0, 0))
-    draw.text((40 * scale, 115 * scale), "Order Date: 20/08/2026", font=font_reg, fill=(0, 0, 0))
-    draw_barcode(draw, 40 * scale, 135 * scale, width=150 * scale, height=35 * scale, seed_val=int(order_id))
-    draw.text((40 * scale, 178 * scale), f"Invoice:# {inv_no}", font=font_reg, fill=(0, 0, 0))
-    draw.text((40 * scale, 198 * scale), "Invoice Date: 21/08/2026", font=font_reg, fill=(0, 0, 0))
+    draw.text((40 * scale, 75 * scale), f"Shipment Code : # ", font=font_reg, fill=(0, 0, 0))
+    draw.text((40 * scale, 90 * scale), f"{shipment_code[:18]}", font=font_bold, fill=(0, 0, 0))
+    draw.text((40 * scale, 108 * scale), f"Order : # {order_id}", font=font_bold, fill=(0, 0, 0))
+    draw.text((40 * scale, 124 * scale), "Order Date: 20/08/2026", font=font_reg, fill=(0, 0, 0))
+    draw_barcode(draw, 40 * scale, 142 * scale, width=150 * scale, height=30 * scale, seed_val=int(order_id))
+    draw.text((40 * scale, 180 * scale), f"Invoice:# {inv_no}", font=font_reg, fill=(0, 0, 0))
+    draw.text((40 * scale, 196 * scale), "Invoice Date: 21/08/2026", font=font_reg, fill=(0, 0, 0))
     
-    # Middle Column Header (Lenskart Details)
-    draw.line([(240 * scale, 65 * scale), (240 * scale, 220 * scale)], fill=(0, 0, 0), width=2)
+    # Middle Column Header (Lenskart Details + Paste Real Header Logo)
+    draw.line([(240 * scale, 65 * scale), (240 * scale, 230 * scale)], fill=(0, 0, 0), width=2*scale)
     
-    # Lenskart Double-Glasses Logo graphic
-    draw.ellipse([255 * scale, 110 * scale, 275 * scale, 125 * scale], outline=(20, 20, 80), width=3)
-    draw.ellipse([273 * scale, 110 * scale, 293 * scale, 125 * scale], outline=(20, 20, 80), width=3)
-    draw.text((255 * scale, 132 * scale), "lenskart", font=get_font(10 * scale, bold=True), fill=(20, 20, 80))
-    
-    draw.text((310 * scale, 75 * scale), "Lenskart Solutions Limited", font=font_bold, fill=(0, 0, 0))
-    draw.text((310 * scale, 90 * scale), "(formerly known as Lenskart Solutions Pvt Ltd)", font=font_reg, fill=(50, 50, 50))
-    draw.text((310 * scale, 105 * scale), "Reg. Office: Plot No. 151, Okhla Industrial Estate,", font=font_reg, fill=(0, 0, 0))
-    draw.text((310 * scale, 120 * scale), "Phase III, New Delhi, 110020", font=font_reg, fill=(0, 0, 0))
-    draw.text((310 * scale, 135 * scale), "Contact Email : support@lenskart.com", font=font_reg, fill=(0, 0, 0))
-    draw.text((310 * scale, 150 * scale), "CIN: L33100DL2008PLC178355", font=font_reg, fill=(0, 0, 0))
-    draw.text((310 * scale, 165 * scale), "GSTIN No: 08AACCV7324B1ZK", font=font_bold, fill=(0, 0, 0))
-    draw.text((310 * scale, 180 * scale), "PAN : AACCV7324B", font=font_reg, fill=(0, 0, 0))
-    draw.text((310 * scale, 195 * scale), "Supplier address: Industrial Plot SP-9, Bhiwadi, Rajasthan", font=font_reg, fill=(0, 0, 0))
+    logo_hdr = get_asset_image("lk_header_logo.png")
+    if logo_hdr:
+        lw, lh = logo_hdr.size
+        tw = int(180 * scale)
+        th = int(lh * (tw / lw))
+        logo_resized = logo_hdr.resize((tw, th), Image.Resampling.LANCZOS)
+        canvas.paste(logo_resized, (250 * scale, 70 * scale), logo_resized)
+    else:
+        draw.text((250 * scale, 75 * scale), "Lenskart Solutions Limited", font=font_bold, fill=(0, 0, 0))
+        
+    draw.text((250 * scale, 125 * scale), "(formerly known as Lenskart Solutions Private Limited)", font=font_small, fill=(50, 50, 50))
+    draw.text((250 * scale, 140 * scale), "Reg. Office: Plot No. 151, Okhla Industrial Estate, Phase III, New Delhi, 110020", font=font_small, fill=(0, 0, 0))
+    draw.text((250 * scale, 154 * scale), "Contact Email : support@lenskart.com", font=font_small, fill=(0, 0, 0))
+    draw.text((250 * scale, 168 * scale), "CIN: L33100DL2008PLC178355 | GSTIN: 08AACCV7324B1ZK", font=font_small, fill=(0, 0, 0))
+    draw.text((250 * scale, 182 * scale), "Supplier address: Industrial Plot SP-9, Bhiwadi, Rajasthan", font=font_small, fill=(0, 0, 0))
+    draw.text((250 * scale, 196 * scale), "www.lenskart.com | 9999899998 (9 AM - 8 PM)", font=font_small, fill=(0, 0, 0))
     
     # Right Column Header
-    draw.line([(570 * scale, 65 * scale), (570 * scale, 220 * scale)], fill=(0, 0, 0), width=2)
+    draw.line([(570 * scale, 65 * scale), (570 * scale, 230 * scale)], fill=(0, 0, 0), width=2*scale)
     draw.text((620 * scale, 75 * scale), f"{random.randint(90000, 99999)}", font=font_large, fill=(0, 0, 0))
-    draw.text((580 * scale, 100 * scale), "Shipment Code:", font=font_reg, fill=(0, 0, 0))
-    draw_barcode(draw, 580 * scale, 118 * scale, width=150 * scale, height=35 * scale, seed_val=int(shipment_code[14:]))
-    draw.text((580 * scale, 160 * scale), "Payment Method: PREPAID", font=font_bold, fill=(0, 0, 0))
-    draw.text((580 * scale, 180 * scale), "Order Type: 1", font=font_reg, fill=(0, 0, 0))
+    draw.text((580 * scale, 98 * scale), "Shipment Code:", font=font_reg, fill=(0, 0, 0))
+    draw_barcode(draw, 580 * scale, 115 * scale, width=150 * scale, height=30 * scale, seed_val=int(shipment_code[14:]))
+    draw.text((580 * scale, 155 * scale), "Payment Method: PREPAID", font=font_bold, fill=(0, 0, 0))
+    draw.text((580 * scale, 172 * scale), "Order Type: 1", font=font_reg, fill=(0, 0, 0))
     
-    draw.line([(30 * scale, 220 * scale), (width - (30 * scale), 220 * scale)], fill=(0, 0, 0), width=2)
+    draw.line([(30 * scale, 230 * scale), (width - (30 * scale), 230 * scale)], fill=(0, 0, 0), width=2*scale)
     
-    # 2. Addresses Box
-    draw.text((40 * scale, 230 * scale), "Bill To Address", font=font_bold, fill=(0, 0, 0))
-    draw.text((320 * scale, 230 * scale), "Address Of Delivery", font=font_bold, fill=(0, 0, 0))
+    # 3. Addresses Boxes
+    draw.text((40 * scale, 240 * scale), "Bill To Address", font=font_bold, fill=(0, 0, 0))
+    draw.text((320 * scale, 240 * scale), "Address Of Delivery", font=font_bold, fill=(0, 0, 0))
     
-    draw.text((40 * scale, 250 * scale), cust[0], font=font_bold, fill=(0, 0, 0))
+    draw.text((40 * scale, 260 * scale), cust[0], font=font_bold, fill=(0, 0, 0))
     addr_l1 = cust[1][:34] if len(cust[1]) > 34 else cust[1]
     addr_l2 = cust[1][34:68] if len(cust[1]) > 34 else ""
     
-    draw.text((40 * scale, 268 * scale), addr_l1, font=font_reg, fill=(0, 0, 0))
-    draw.text((40 * scale, 285 * scale), addr_l2, font=font_reg, fill=(0, 0, 0))
+    draw.text((40 * scale, 276 * scale), addr_l1, font=font_reg, fill=(0, 0, 0))
+    draw.text((40 * scale, 292 * scale), addr_l2, font=font_reg, fill=(0, 0, 0))
     
-    draw.text((320 * scale, 250 * scale), cust[0], font=font_bold, fill=(0, 0, 0))
-    draw.text((320 * scale, 268 * scale), addr_l1, font=font_reg, fill=(0, 0, 0))
-    draw.text((320 * scale, 285 * scale), addr_l2, font=font_reg, fill=(0, 0, 0))
+    draw.text((320 * scale, 260 * scale), cust[0], font=font_bold, fill=(0, 0, 0))
+    draw.text((320 * scale, 276 * scale), addr_l1, font=font_reg, fill=(0, 0, 0))
+    draw.text((320 * scale, 292 * scale), addr_l2, font=font_reg, fill=(0, 0, 0))
     
-    draw.line([(30 * scale, 325 * scale), (width - (30 * scale), 325 * scale)], fill=(0, 0, 0), width=2)
+    draw.line([(30 * scale, 325 * scale), (width - (30 * scale), 325 * scale)], fill=(0, 0, 0), width=2*scale)
     
-    # 3. Item Table Grid Header
+    # 4. Item Table Grid Header (Matching Sample PDF Columns)
     draw.text((40 * scale, 335 * scale), "Description Of Goods", font=font_bold, fill=(0, 0, 0))
     draw.text((230 * scale, 335 * scale), "HSN", font=font_bold, fill=(0, 0, 0))
     draw.text((290 * scale, 335 * scale), "UNIT PRICE", font=font_bold, fill=(0, 0, 0))
@@ -832,7 +845,7 @@ def generate_lenskart_exact_replica_invoice(custom_address=None, custom_name=Non
     draw.text((580 * scale, 335 * scale), "IGST", font=font_bold, fill=(0, 0, 0))
     draw.text((660 * scale, 335 * scale), "TOTAL VALUE", font=font_bold, fill=(0, 0, 0))
     
-    draw.line([(30 * scale, 355 * scale), (width - (30 * scale), 355 * scale)], fill=(0, 0, 0), width=2)
+    draw.line([(30 * scale, 355 * scale), (width - (30 * scale), 355 * scale)], fill=(0, 0, 0), width=2*scale)
     
     item = random.choice(LK_ITEMS_CATALOG)
     qty = 1
@@ -857,9 +870,9 @@ def generate_lenskart_exact_replica_invoice(custom_address=None, custom_name=Non
     draw.text((580 * scale, 365 * scale), f"18.0%", font=font_reg, fill=(0, 0, 0))
     draw.text((660 * scale, 365 * scale), f"{total_val:.2f} INR", font=font_bold, fill=(0, 0, 0))
     
-    draw.line([(30 * scale, 480 * scale), (width - (30 * scale), 480 * scale)], fill=(0, 0, 0), width=2)
+    draw.line([(30 * scale, 480 * scale), (width - (30 * scale), 480 * scale)], fill=(0, 0, 0), width=2*scale)
     
-    # Bottom Grid: Real Scannable QR Code + Totals + Signature
+    # 5. Bottom Grid: Scannable QR Code + Totals + Disclaimers + Paste Real Signature
     draw_qr_code(canvas, 140 * scale, 500 * scale, size=85 * scale, data_str=f"https://www.lenskart.com/taxinvoice/verify/{order_id}")
     
     draw.text((360 * scale, 495 * scale), "Total Taxable Amount :", font=font_reg, fill=(0, 0, 0))
@@ -869,20 +882,31 @@ def generate_lenskart_exact_replica_invoice(custom_address=None, custom_name=Non
     draw.text((360 * scale, 535 * scale), "CGST / SGST :", font=font_reg, fill=(0, 0, 0))
     draw.text((660 * scale, 535 * scale), "0.00 INR", font=font_reg, fill=(0, 0, 0))
     
-    draw.line([(350 * scale, 555 * scale), (width - (30 * scale), 555 * scale)], fill=(0, 0, 0), width=2)
+    draw.line([(350 * scale, 555 * scale), (width - (30 * scale), 555 * scale)], fill=(0, 0, 0), width=2*scale)
     draw.text((360 * scale, 565 * scale), "Grand Total (incl. of taxes) :", font=font_bold, fill=(0, 0, 0))
     draw.text((660 * scale, 565 * scale), f"{total_val:.2f} INR", font=font_bold, fill=(0, 0, 0))
     
     draw.text((40 * scale, 600 * scale), f"Total Price: INR {total_val:.2f} rupees only", font=font_bold, fill=(0, 0, 0))
     
-    # Render Exact Copied Blue Ink Signature from Sample PDF
-    draw_lenskart_signature(draw, x=540 * scale, y=630 * scale, scale=scale)
-    draw.text((535 * scale, 690 * scale), "Authorized Signatory", font=font_bold, fill=(60, 60, 60))
-    
-    # Disclaimer
+    # Disclaimers
     draw.text((40 * scale, 640 * scale), "Disclaimer:", font=font_bold, fill=(0, 0, 0))
-    draw.text((40 * scale, 655 * scale), "1. This is computer generated invoice", font=font_reg, fill=(50, 50, 50))
-    draw.text((40 * scale, 670 * scale), "2. For other T&C Please refer our website www.lenskart.com", font=font_reg, fill=(50, 50, 50))
+    draw.text((40 * scale, 655 * scale), "1. This is computer generated invoice", font=font_small, fill=(50, 50, 50))
+    draw.text((40 * scale, 668 * scale), "2. For other T&C Please refer our website www.lenskart.com", font=font_small, fill=(50, 50, 50))
+    draw.text((40 * scale, 681 * scale), "3. Tax is payable on reverse charge basis: No", font=font_small, fill=(50, 50, 50))
+    draw.text((40 * scale, 694 * scale), "4. The information provided in the invoice is true and correct", font=font_small, fill=(50, 50, 50))
+    
+    # Paste Real Signature Image
+    sig_img = get_asset_image("lk_signature_real.png")
+    if sig_img:
+        sw, sh = sig_img.size
+        tw = int(220 * scale)
+        th = int(sh * (tw / sw))
+        sig_resized = sig_img.resize((tw, th), Image.Resampling.LANCZOS)
+        canvas.paste(sig_resized, (560 * scale, 620 * scale), sig_resized)
+    else:
+        draw.text((540 * scale, 630 * scale), "Authorized Signatory", font=font_bold, fill=(60, 60, 60))
+        
+    draw.text((550 * scale, 690 * scale), "Authorized Signatory", font=font_bold, fill=(60, 60, 60))
     
     data_summary = {
         "store_name": "LENSKART SOLUTIONS LIMITED",
